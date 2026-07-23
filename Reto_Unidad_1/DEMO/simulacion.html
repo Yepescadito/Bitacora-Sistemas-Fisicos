@@ -99,7 +99,7 @@
       constructor(x = width / 2, y = height / 2, special = false, bigBias = false) {
         this.pos = createVector(x, y);
         this.vel = createVector(0, 0);
-        this.baseColor = Walker.chooseColor();
+        this.baseColor = Walker.chooseColor(x, y);
         this.size = Walker.chooseSize(special, bigBias);
         this.strokeWeight = map(this.size, 4, 160, 0.8, 8);
         this.active = true;
@@ -109,14 +109,17 @@
         this.history = [this.pos.copy()];
       }
 
-      static chooseColor() {
-        const colors = [
+      static chooseColor(x, y) {
+        let colors = [
           { value: '#1d6eff', weight: 50 },
           { value: '#55ccff', weight: 25 },
           { value: '#ff7f11', weight: 18 },
           { value: '#e63946', weight: 12 },
           { value: '#7b2cbf', weight: 10 }
         ];
+        if (Walker.isOverAfrica(x, y)) {
+          colors = colors.filter(item => item.value !== '#1d6eff' && item.value !== '#55ccff');
+        }
         const total = colors.reduce((sum, item) => sum + item.weight, 0);
         let choice = random(total);
         for (let item of colors) {
@@ -126,6 +129,14 @@
           choice -= item.weight;
         }
         return colors[0].value;
+      }
+
+      static isOverAfrica(x, y) {
+        const left = width * 0.37;
+        const right = width * 0.50;
+        const top = height * 0.28;
+        const bottom = height * 0.60;
+        return x >= left && x <= right && y >= top && y <= bottom;
       }
 
       static chooseSize(special, bigBias) {
