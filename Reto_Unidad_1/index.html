@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Navegar la incertidumbre</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #080a10;
+      color: #f2f2f2;
+      font-family: "Inter", system-ui, sans-serif;
+    }
+    #defaultCanvas0 {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    let sketch;
+
+    function preload() {
+      sketch = new Sketch(1024, 640);
+      sketch.preload();
+    }
+
+    function setup() {
+      sketch.setup();
+    }
+
+    function draw() {
+      sketch.draw();
+    }
+
+    function mousePressed() {
+      sketch.handleMousePressed();
+    }
+
+    class Sketch {
+      constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.startTime = 0;
+        this.mapImage = null;
+        this.mapImageReady = false;
+        this.mapa = null;
+        this.probabilidad = null;
+        this.ruidoPerlin = null;
+        this.gestorEventos = null;
+        this.interaccion = null;
+        this.hud = null;
+      }
+
+      preload() {
+        this.mapImage = loadImage(
+          'mapa.png',
+          img => {
+            this.mapImage = img;
+            this.mapImageReady = true;
+          },
+          () => {
+            this.mapImage = null;
+            this.mapImageReady = false;
+          }
+        );
+      }
+
+      setup() {
+        createCanvas(this.width, this.height, WEBGL === false ? P2D : P2D);
+        pixelDensity(window.devicePixelRatio || 1);
+        smooth(8);
+        frameRate(60);
+        colorMode(HSB, 360, 100, 100, 100);
+        noStroke();
+
+        this.ruidoPerlin = new RuidoPerlin(this.width, this.height, 0.003);
+        this.probabilidad = new Probabilidad();
+        this.mapa = new Mapa(this.width, this.height, this.ruidoPerlin, this.mapImage);
+        this.gestorEventos = new GestorEventos(this.mapa, this.probabilidad);
+        this.interaccion = new Interaccion(this.gestorEventos);
+        this.hud = new HUD(this.gestorEventos);
+        this.startTime = millis();
+      }
+
+      draw() {
+        this.mapa.render();
+        this.gestorEventos.update();
+        this.gestorEventos.render();
+        this.hud.render(millis() - this.startTime);
+      }
+
+      handleMousePressed() {
+        if (mouseButton === LEFT) {
+          this.interaccion.handleClick(mouseX, mouseY);
+        }
+      }
+    }
+
+    class Mapa {
+      constructor(width, height, ruidoPerlin, mapImage = null) {
+        this.width = width;
+        this.height = height;
+        this.ruidoPerlin = ruidoPerlin;
+        this.mapImage = mapImage;
+        this.mapImageReady = mapImage !== null;
+      }
+
+      render() {
+        if (this.mapImageReady && this.mapImage) {
+          push();
+          tint(220, 10, 100, 42);
+          image(this.mapImage, 0, 0, this.width, this.height);
+          pop();
+        } else {
+          background(220, 10, 8);
+        }
+
+        noStroke();
+        const tile = 22;
+        for (let y = 0; y < this.height; y += tile) {
+          for (let x = 0; x < this.width; x += tile) {
+            const v = this.ruidoPerlin.intensidad(x + 8, y + 8);
+            const size = map(v, 0, 1, 4, 24);
+            const opacity = map(v, 0, 1, 10, 38);
+            fill(216, 14, 82, opacity);
+            ellipse(x + tile * 0.5, y + tile * 0.5, size, size);
+          }
+        }
+
+        fill(220, 10, 16, 16);
+        rect(0, 0, this.width, this.height);
+      }
+    }
+
+    class Probabilidad {
+      constructor() {
+        this.tipoFrecuencias = {
+          inundacion: 0.4,
+          huracan: 0.3,
+          terremoto: 0.2,
+          erupcion: 0.1,
+        };
+      }
+
+      seleccionarTipo() {
+        const valor = random();
+        let acumulado = 0;
+        for (const tipo in this.tipoFrecuencias) {
+          acumulado += this.tipoFrecuencias[tipo];
+          if (valor <= acumulado) {
+            return tipo;
+          }
+        }
+        return "inundacion";
+      }
+
+      generarMagnitud() {
+        const intensidad = randomGaussian(0.45, 0.18);
+        return constrain(intensidad, 0.08, 1.0);
+      }
+    }
+
+    class RuidoPerlin {
+      constructor(width, height, scale) {
+        this.width = width;
+        this.height = height;
+        this.scale = scale;
+      }
+
+      intensidad(x, y) {
+        const nx = x * this.scale;
+        const ny = y * this.scale;
+        return noise(nx, ny);
+      }
+    }
+
+    class Evento {
+      constructor(x, y, tipo, magnitud, mapa) {
+        this.position = createVector(x, y);
+        this.tipo = tipo;
+        this.magnitud = magnitud;
+        this.mapa = mapa;
+        this.state = "activo";
+        this.life = 0;
+        this.risk = this.calcularRiesgo();
+        this.size = this.magnitud * 90 + 18;
+        this.velocity = p5.Vector.random2D().mult(0.5 + this.magnitud * 1.3);
+        this.hue = this.obtenerColorPorTipo(tipo);
+        this.alpha = 28;
+        this.frameOffset = random(0, TWO_PI);
+        this.hitTimer = 0;
+        this.destroyTimer = 0;
+        this.nodes = [];
+        const nodeCount = floor(random(3, 7));
+        for (let i = 0; i < nodeCount; i++) {
+          this.nodes.push({
+            offset: p5.Vector.random2D().mult(random(0.18, 0.56) * this.size),
+            radius: random(0.18, 0.54) * this.size,
+            alpha: random(0.18, 0.62),
+            phase: random(0, TWO_PI),
+          });
+        }
+      }
+
+      obtenerColorPorTipo(tipo) {
+        switch (tipo) {
+          case "inundacion":
+            return 210;
+          case "huracan":
+            return 52;
+          case "terremoto":
+            return 28;
+          case "erupcion":
+            return 2;
+          default:
+            return 210;
+        }
+      }
+
+      obtenerEtiquetaTipo(tipo) {
+        switch (tipo) {
+          case "inundacion":
+            return "🔵 Inundación";
+          case "huracan":
+            return "🟡 Huracán";
+          case "terremoto":
+            return "🟠 Terremoto";
+          case "erupcion":
+            return "🔴 Erupción";
+          default:
+            return "Evento";
+        }
+      }
+
+      calcularRiesgo() {
+        return constrain(this.magnitud * 0.8 + this.life * 0.0009, 0, 1);
+      }
+
+      isActive() {
+        return this.state === "activo";
+      }
+
+      isExtinto() {
+        return this.state === "extinto";
+      }
+
+      isFinished() {
+        return this.state === "finalizado";
+      }
+
+      update() {
+        if (this.hitTimer > 0) {
+          this.hitTimer -= 1;
+        }
+
+        if (this.state === "finalizado") {
+          return;
+        }
+
+        if (this.state === "extinto") {
+          this.destroyTimer -= 1;
+          this.life += 1;
+          this.alpha = max(0, this.alpha - 1.2);
+          this.size *= 0.94;
+          this.position.add(this.velocity.mult(0.04));
+          if (this.destroyTimer <= 0 || this.alpha <= 2) {
+            this.state = "finalizado";
+          }
+          return;
+        }
+
+        if (!this.isActive()) {
+          this.life += 1;
+          this.alpha = max(2, this.alpha - 0.32);
+          this.size *= 0.9998;
+          return;
+        }
+
+        this.life += 1;
+        this.randomWalk();
+        if (random() < 0.007) {
+          this.levyFlight();
+        }
+        this.constrainToBounds();
+        this.risk = this.calcularRiesgo();
+        this.alpha = 18 + sin((frameCount + this.frameOffset) * 0.08) * 8;
+      }
+
+      randomWalk() {
+        const jitter = p5.Vector.random2D().mult(0.18);
+        this.velocity.add(jitter);
+        this.velocity.limit(2.4 + this.magnitud * 1.4);
+        this.position.add(this.velocity);
+      }
+
+      levyFlight() {
+        const angle = random(TWO_PI);
+        const step = pow(random(), -1.2) * 18;
+        this.position.x += cos(angle) * step;
+        this.position.y += sin(angle) * step;
+      }
+
+      constrainToBounds() {
+        const margin = this.size * 0.5 + 2;
+        this.position.x = constrain(this.position.x, margin, this.mapa.width - margin);
+        this.position.y = constrain(this.position.y, margin, this.mapa.height - margin);
+        if (this.position.x <= margin || this.position.x >= this.mapa.width - margin) {
+          this.velocity.x *= -0.7;
+        }
+        if (this.position.y <= margin || this.position.y >= this.mapa.height - margin) {
+          this.velocity.y *= -0.7;
+        }
+      }
+
+      render() {
+        const pulse = sin((frameCount + this.frameOffset) * 0.08) * 0.035 + 1;
+        const outerSize = this.size * (1 + pulse * 0.1);
+
+        push();
+        noStroke();
+        for (let node of this.nodes) {
+          const wobble = p5.Vector.fromAngle((frameCount * 0.016) + node.phase).mult(6);
+          const current = p5.Vector.add(this.position, p5.Vector.add(node.offset, wobble));
+          fill(this.hue, 80, 90, this.alpha * node.alpha * 0.55);
+          ellipse(current.x, current.y, node.radius, node.radius);
+        }
+
+        if (this.hitTimer > 0) {
+          fill(0, 0, 100, this.hitTimer * 2.1);
+          ellipse(this.position.x, this.position.y, outerSize * 1.55, outerSize * 1.55);
+        }
+
+        fill(this.hue, 86, 88, this.alpha);
+        ellipse(this.position.x, this.position.y, outerSize, outerSize);
+        fill(this.hue, 65, 100, this.alpha * 0.62);
+        ellipse(this.position.x, this.position.y, outerSize * 0.72, outerSize * 0.72);
+        pop();
+      }
+
+      aplicarMitigacion() {
+        this.hitTimer = 16;
+        const falla = random() < 0.12 + this.magnitud * 0.18;
+        if (falla) {
+          this.velocity.mult(1.2);
+          return false;
+        }
+
+        if (this.magnitud <= 0.35) {
+          this.state = "extinto";
+          this.destroyTimer = 42;
+          return true;
+        }
+
+        this.magnitud = max(0.08, this.magnitud - 0.24);
+        this.size = this.magnitud * 110 + 18;
+        this.risk = this.calcularRiesgo();
+        for (let node of this.nodes) {
+          node.radius = max(6, node.radius * 0.72);
+          node.alpha *= 0.82;
+        }
+        return true;
+      }
+    }
+
+    class GestorEventos {
+      constructor(mapa, probabilidad) {
+        this.mapa = mapa;
+        this.probabilidad = probabilidad;
+        this.eventos = [];
+        this.mitigados = 0;
+      }
+
+      update() {
+        const interval = max(8, 20 - floor(this.eventos.length * 0.14));
+        if (frameCount % interval === 0) {
+          this.generarEvento();
+        }
+
+        for (let evento of this.eventos) {
+          evento.update();
+        }
+
+        this.eventos = this.eventos.filter(evento => !evento.isFinished());
+      }
+
+      render() {
+        for (let evento of this.eventos) {
+          evento.render();
+        }
+      }
+
+      generarEvento() {
+        const position = this.seleccionarPosicionVulnerable();
+        if (!position) {
+          return;
+        }
+
+        const tipo = this.probabilidad.seleccionarTipo();
+        const magnitud = this.probabilidad.generarMagnitud();
+        const evento = new Evento(position.x, position.y, tipo, magnitud, this.mapa);
+        this.eventos.push(evento);
+      }
+
+      seleccionarPosicionVulnerable() {
+        for (let intentos = 0; intentos < 12; intentos++) {
+          const x = random(this.mapa.width);
+          const y = random(this.mapa.height);
+          const valor = this.mapa.ruidoPerlin.intensidad(x, y);
+          const prob = map(valor, 0, 1, 0.15, 0.88);
+          if (random() < prob) {
+            return { x, y };
+          }
+        }
+        return { x: random(this.mapa.width), y: random(this.mapa.height) };
+      }
+
+      mitigarEvento(evento) {
+        const resultado = evento.aplicarMitigacion();
+        if (resultado && evento.state === "extinto") {
+          this.mitigados += 1;
+        }
+        return resultado;
+      }
+
+      calcularNivelRiesgo() {
+        if (this.eventos.length === 0) {
+          return 0;
+        }
+        const totalRiesgo = this.eventos.reduce((sum, evento) => sum + evento.risk, 0);
+        return totalRiesgo / this.eventos.length;
+      }
+
+      calcularNivelResiliencia() {
+        const totalGenerados = this.mitigados + this.eventos.length;
+        if (totalGenerados === 0) {
+          return 0;
+        }
+        return constrain(this.mitigados / totalGenerados, 0, 1);
+      }
+    }
+
+    class Interaccion {
+      constructor(gestorEventos) {
+        this.gestorEventos = gestorEventos;
+      }
+
+      handleClick(x, y) {
+        const objetivo = this.gestorEventos.eventos
+          .filter(evento => evento.isActive())
+          .sort((a, b) => dist(a.position.x, a.position.y, x, y) - dist(b.position.x, b.position.y, x, y))
+          .find(evento => dist(evento.position.x, evento.position.y, x, y) <= evento.size * 0.6);
+
+        if (objetivo) {
+          this.gestorEventos.mitigarEvento(objetivo);
+        }
+      }
+    }
+
+    class HUD {
+      constructor(gestorEventos) {
+        this.gestorEventos = gestorEventos;
+      }
+
+      render(elapsedMillis) {
+        const riesgo = this.gestorEventos.calcularNivelRiesgo();
+        const resiliencia = this.gestorEventos.calcularNivelResiliencia();
+
+        push();
+        resetMatrix();
+        noLights();
+        fill(220, 10, 100, 90);
+        rect(18, 18, 340, 150, 18);
+        fill(220, 10, 12);
+        textSize(14);
+        textAlign(LEFT, TOP);
+        text("Simulación: Navegar la incertidumbre", 34, 28);
+        text(`Tiempo: ${(elapsedMillis / 1000).toFixed(1)} s`, 34, 52);
+        text(`Eventos activos: ${this.gestorEventos.eventos.length}`, 34, 76);
+        text(`Eventos mitigados: ${this.gestorEventos.mitigados}`, 34, 100);
+        text(`Nivel de riesgo: ${(riesgo * 100).toFixed(0)} %`, 34, 124);
+        text(`Resiliencia: ${(resiliencia * 100).toFixed(0)} %`, 34, 148);
+
+        const barWidth = 260;
+        const baseY = 128;
+        fill(220, 10, 18, 24);
+        rect(34, baseY, barWidth, 12, 6);
+        fill(24, 82, 92);
+        rect(34, baseY, barWidth * resiliencia, 12, 6);
+        pop();
+      }
+    }
+  </script>
+</body>
+</html>

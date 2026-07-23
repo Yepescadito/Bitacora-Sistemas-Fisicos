@@ -21,6 +21,8 @@ class Walker {
     this.y = height / 2;
   }
 
+
+  
   show() {
     stroke("blue");
     fill(0, 10);
