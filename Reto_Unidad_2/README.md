@@ -2,6 +2,7 @@ Reto de Diseño - Unidad 2 / Movimiento
 
 Cooperación vs. Competencia: un sistema generativo inspirado en la final de la Liga BetPlay Apertura 2024
 
+-Link: https://editor.p5js.org/Yepescadito/full/5Ac9WPKfJ
 
 Intención
 
