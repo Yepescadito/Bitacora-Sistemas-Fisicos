@@ -47,7 +47,7 @@ El sistema utiliza los siguientes parámetros:
 - Velocidad máxima.
 - Bordes toroidales.
 
-Estos parámetros pueden modificarse desde la interfaz para explorar diferentes configuraciones sin alterar la identidad general del sistema.
+Estos parámetros pueden modificarse desde la interfaz para explorar diferentes configuraciones sin alterar la funcionalidad del sistema.
 
 __1. Invariantes__
 
@@ -62,57 +62,36 @@ __2. Variables__
 - Radio de interacción.
 - Fricción.
 - Velocidad máxima.
-
-Estas modificaciones producen resultados distintos sin perder la identidad del sistema.
+- 
 
 # Registro de pruebas
 
-Prueba 1
+- __Prueba 1__
 
-Todas las fuerzas de atracción eran muy altas.
+Todas las fuerzas de atracción eran muy altas y solo se formaban grupos "grandes" de 3 equipos, Millonarios hacia sus propios grupos. 
 
-Resultado:
+![Simulación 1](V1.gif)
 
-Las partículas terminaban formando un único grupo compacto.
 
-Conclusión:
+- __Prueba 2__
 
-El sistema perdía la tensión entre cooperación y competencia.
+Aumente la atracción de Bucaramanga para todos los equipos (Hasta el de Santa Fe), pero mantuve la repulsión que generaba Santa Fe, se formaron grupos muy interesantes y al mismo tiempo se excluían algunas particulas.
 
-Prueba 2
+![Simulación 1](V2.gif)
 
-Se aumentó la repulsión ejercida por Santa Fe.
 
-Resultado:
+- __Prueba 3__
 
-Los grupos comenzaron a romperse constantemente.
+Aumente la repulsión ejercida por Santa Fe e hice que la Equidad no fuera "receptiva" ante las intenciones de los otros 3 equipos.
 
-Conclusión:
+![Simulación 1](V3.gif)
 
-La competencia se hizo mucho más perceptible.
 
-Prueba 3
+- __Prueba 4 (FINAL)__
 
-Se redujo la fricción.
+Se equilibraron las un poco fuerzas de cooperación y competencia, se agrupaban en cadenas mas grandes. Los grupos tomaban diferentes direcciones y cambiaban su dirección si se encontraban con alguno de Santa Fe
 
-Resultado:
+![Simulación 1](VF.gif)
 
-Las partículas permanecían en movimiento durante más tiempo y aparecieron órbitas y agrupaciones dinámicas.
-
-Conclusión:
-
-El sistema mostró comportamientos emergentes más interesantes.
-
-Prueba 4 (seleccionada)
-
-Se equilibraron las fuerzas de cooperación y competencia.
-
-Resultado:
-
-Los grupos aparecían, desaparecían y se reorganizaban continuamente.
-
-Conclusión:
-
-Esta configuración comunica mejor la intención del proyecto.
 
 
