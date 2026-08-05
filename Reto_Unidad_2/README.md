@@ -34,42 +34,85 @@ Seleccioné una fuerte atracción entre Bucaramanga y los demás equipos porque 
 
 ![Simulación 1](Matriz.png)
 
-- Relación asimétrica
-
-Una de las relaciones del sistema es asimétrica.
-La Equidad siente una atracción mayor hacia Bucaramanga que la que Bucaramanga ejerce sobre La Equidad. Esta diferencia permite que la cooperación no sea completamente recíproca y genera comportamientos más variados durante la simulación.
-
 # Parámetros del sistema
 
 El sistema utiliza los siguientes parámetros:
 
-Posición inicial aleatoria.
-Velocidad.
-Aceleración.
-Radio de interacción.
-Fuerzas de atracción y repulsión.
-Fricción.
-Velocidad máxima.
-Bordes toroidales.
-Variación mediante semillas aleatorias.
+- Posición inicial aleatoria.
+- Velocidad.
+- Aceleración.
+- Radio de interacción.
+- Fuerzas de atracción y repulsión.
+- Fricción.
+- Velocidad máxima.
+- Bordes toroidales.
 
 Estos parámetros pueden modificarse desde la interfaz para explorar diferentes configuraciones sin alterar la identidad general del sistema.
 
-- Invariantes
+__1. Invariantes__
 
-Los siguientes elementos permanecen constantes en todas las ejecuciones:
+- Existen siempre cinco poblaciones.
+- Todas las partículas interactúan mediante fuerzas dependientes de la distancia.
+- El comportamiento surge únicamente de las reglas del sistema.
 
-Existen siempre cinco poblaciones.
-Todas las partículas interactúan mediante fuerzas dependientes de la distancia.
-El comportamiento surge únicamente de las reglas del sistema.
+__2. Variables__
 
-- Variables
-
-Entre cada ejecución pueden variar:
-Posición inicial de las partículas.
-Intensidad de las fuerzas.
-Radio de interacción.
-Fricción.
-Velocidad máxima.
+- Posición inicial de las partículas.
+- Intensidad de las fuerzas.
+- Radio de interacción.
+- Fricción.
+- Velocidad máxima.
 
 Estas modificaciones producen resultados distintos sin perder la identidad del sistema.
+
+# Registro de pruebas
+
+Prueba 1
+
+Todas las fuerzas de atracción eran muy altas.
+
+Resultado:
+
+Las partículas terminaban formando un único grupo compacto.
+
+Conclusión:
+
+El sistema perdía la tensión entre cooperación y competencia.
+
+Prueba 2
+
+Se aumentó la repulsión ejercida por Santa Fe.
+
+Resultado:
+
+Los grupos comenzaron a romperse constantemente.
+
+Conclusión:
+
+La competencia se hizo mucho más perceptible.
+
+Prueba 3
+
+Se redujo la fricción.
+
+Resultado:
+
+Las partículas permanecían en movimiento durante más tiempo y aparecieron órbitas y agrupaciones dinámicas.
+
+Conclusión:
+
+El sistema mostró comportamientos emergentes más interesantes.
+
+Prueba 4 (seleccionada)
+
+Se equilibraron las fuerzas de cooperación y competencia.
+
+Resultado:
+
+Los grupos aparecían, desaparecían y se reorganizaban continuamente.
+
+Conclusión:
+
+Esta configuración comunica mejor la intención del proyecto.
+
+
