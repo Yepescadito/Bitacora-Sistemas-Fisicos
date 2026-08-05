@@ -113,27 +113,27 @@ Se equilibraron las un poco fuerzas de cooperación y competencia, se agrupaban 
 
 ## Sustentación
 
-1. __La intención es clara y perceptible en el comportamiento__ (95%)
+1. *__La intención es clara y perceptible en el comportamiento__* (95%)
 
 Busqué representar la cooperación y la competencia mediante un sistema de partículas. En general, creo que la simulación logra transmitir esa idea a través de la forma en que las partículas se agrupan y cambian su rumbo.
 
-2. __Los tipos, cantidades, matriz y parámetros están justificados desde la intención__ (90%)
+2. *__Los tipos, cantidades, matriz y parámetros están justificados desde la intención__* (90%)
 
 Cada población tiene un comportamiento definido según su rol dentro del sistema. La matriz de relaciones, la cantidad de partículas y los parámetros físicos fueron ajustados para reforzar la idea de cooperación y competencia, aunque todavía podrían explorarse más configuraciones para encontrar un equilibrio aún más preciso.
 
-3. __Comprendo y puedo modificar el funcionamiento técnico del sistema__ (70%)
+3. *__Comprendo y puedo modificar el funcionamiento técnico del sistema__* (70%)
 
 Aunque puedo realizar cambios y entender su efecto general, siento que aún me falta profundizar en la parte técnica para explicar con mayor seguridad todos los procesos del sistema.
 
-4. __El sistema produce variaciones con una identidad reconocible__ (90%)
+4. *__El sistema produce variaciones con una identidad reconocible__* (90%)
 
 Cada ejecución genera patrones diferentes gracias a la aleatoriedad en la distribución inicial y otros parámetros variables.
 
-5. __Experimenté, comparé, seleccioné y descarté con criterios claros__ (80%)
+5. *__Experimenté, comparé, seleccioné y descarté con criterios claros__* (80%)
 
 Realicé diferentes pruebas modificando la matriz de relaciones para observar cómo cambian el comportamiento del sistema. Aunque registré varias pruebas, considero que podría haber documentado con mayor detalle cada iteración del proceso y pude intentar llegar a un mejor resultado.
 
-6. __Puedo distinguir y sustentar lo diseñado y lo emergente__ (70%)
+6. *__Puedo distinguir y sustentar lo diseñado y lo emergente__* (70%)
 
 Puedo identificar cuáles elementos fueron diseñados, como la matriz de relaciones, las cantidades de partículas y los parámetros del sistema. Pero, me cuesta explicar algunos comportamientos que aparecen durante la simulación y cómo cada regla específica los afecta.
 
