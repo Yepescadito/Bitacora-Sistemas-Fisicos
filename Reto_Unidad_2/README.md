@@ -6,9 +6,9 @@
 
 # Intención
 
-Quiero explorar la tensión entre la cooperación y la competencia.
+Quiero explorar la tensión entre la cooperación y la competencia. 
 
-La propuesta toma como inspiración la final de la Liga BetPlay Apertura 2024 entre Atlético Bucaramanga e Independiente Santa Fe. Más allá del resultado deportivo, el proyecto parte de la idea de que, incluso en un contexto altamente competitivo, pueden surgir alianzas temporales alrededor de un objetivo común. No pretende representar un partido de fútbol, sino utilizar esa situación como punto de partida para estudiar cómo comportamientos simples de atracción y repulsión pueden generar dinámicas complejas.
+La inspiración fue la final entre Bucaramanga y Santa Fe en 2024. Me llamó la atención ver cómo equipos que normalmente son rivales, como Nacional y Millonarios, coincidían en apoyar a Bucaramanga. Al mismo tiempo, también me pareció interesante que Millonarios, a pesar de ser de Bogotá como Santa Fe, no apoyara al otro equipo de su ciudad. Quise representar esas contradicciones mediante las relaciones entre las partículas, mostrando cómo las alianzas y las rivalidades pueden cambiar según el contexto.
 
 Espero que el sistema produzca momentos donde diferentes poblaciones colaboren para formar estructuras estables, mientras otra población intente romper constantemente esos grupos. De esta manera, la cooperación y la competencia coexistirán en un equilibrio cambiante donde ningún estado será permanente.
 
@@ -18,19 +18,19 @@ El sistema está compuesto por cinco poblaciones de partículas, cada una inspir
 
 - __Tipos de partículas__ 
 
-Seleccioné cinco poblaciones porque quería representar distintas formas de relacionarse dentro del sistema. En lugar de dividir únicamente entre cooperación y competencia, cada equipo cumple una función específica que enriquece los comportamientos emergentes.
+Seleccioné cinco poblaciones porque quería representar distintas formas de relacionarse dentro del sistema. En lugar de dividir únicamente entre cooperación y competencia, cada equipo cumple una función específica de acuerdo a sus intenciones o motivaciones.
 
 - __Cantidad de partículas__ 
 
-Asigné una mayor cantidad de partículas a Bucaramanga porque quiero hacer perceptible su papel como núcleo de cooperación. Espero que esto facilite la formación de agrupaciones visibles.
-Santa Fe posee una cantidad alta de partículas para que la competencia tenga una influencia constante y sea capaz de desestabilizar los grupos cooperativos.
-Las demás poblaciones tienen cantidades similares para mantener un equilibrio entre apoyo, mediación y competencia secundaria.
+La cantidad de partículas de cada equipo se definió tomando como referencia el tamaño aproximado de sus aficiones. Por esta razón, Atlético Nacional tiene la mayor cantidad de partículas, seguido por Millonarios y Santa Fe, mientras que Bucaramanga y La Equidad cuentan con poblaciones más pequeñas.
+
+Aunque Bucaramanga inicia con menos partículas, fue diseñado para atraer a las demás poblaciones. Con esto busqué representar cómo, durante la final de la Liga BetPlay Apertura 2024, un equipo con una afición más pequeña logró generar simpatía y apoyo entre seguidores de otros clubes. Así, el sistema muestra que la cooperación no depende únicamente del tamaño de una población, sino también de las relaciones que establece con las demás.
 
 ![Simulación 1](Tipos.png)
 
 - __Relaciones__ 
 
-Seleccioné una fuerte atracción entre Bucaramanga y los demás equipos porque quiero hacer perceptible la cooperación como una fuerza organizadora del sistema. Asigné una fuerte repulsión entre Santa Fe y Bucaramanga porque quiero representar la competencia como una fuerza capaz de romper agrupaciones estables. Entre Nacional, Millonarios y Equidad existen relaciones moderadas de atracción y repulsión para evitar que el sistema permanezca estático y permitir reorganizaciones constantes.
+Diseñé las relaciones para que Bucaramanga tuviera una mayor atracción hacia los demás equipos, ya que quería representar cómo logró reunir el apoyo de muchas aficiones durante la final. En cambio, Santa Fe mantiene una relación de competencia con Bucaramanga, por lo que sus partículas tienden a separarse y romper esas agrupaciones. Entre Nacional, Millonarios y La Equidad hay relaciones más equilibradas, permitiendo que se formen y deshagan grupos constantemente sin que el sistema permanezca siempre igual.
 
 ![Simulación 1](Matriz.png)
 
@@ -62,7 +62,6 @@ __2. Variables__
 - Radio de interacción.
 - Fricción.
 - Velocidad máxima.
-- 
 
 # Registro de pruebas
 
@@ -93,5 +92,48 @@ Se equilibraron las un poco fuerzas de cooperación y competencia, se agrupaban 
 
 ![Simulación 1](VF.gif)
 
+# Autoevaluación
 
+| Criterio | Peso | Valoración | Aporte |
+|-----------|:----:|:----------:|:------:|
+| La intención es clara y perceptible en el comportamiento. | 20% | 95% | 19.0 |
+| Los tipos, cantidades, matriz y parámetros están justificados desde la intención. | 25% | 90% | 22.5 |
+| Comprendo y puedo modificar el funcionamiento técnico del sistema. | 20% | 70% | 14.0 |
+| El sistema produce variaciones con una identidad reconocible. | 15% | 90% | 13.5 |
+| Experimenté, comparé, seleccioné y descarté con criterios claros. | 10% | 80% | 8.0 |
+| Puedo distinguir y sustentar lo diseñado y lo emergente. | 10% | 70% | 7.0 |
+| **Total** | **100%** |  | **84.0** |
+
+### Nota propuesta
+
+**Puntaje total:** **84.0**
+
+**84 ÷ 20 = 4.2**
+
+
+## Sustentación
+
+1. __La intención es clara y perceptible en el comportamiento__ (95%)
+
+Busqué representar la cooperación y la competencia mediante un sistema de partículas. En general, creo que la simulación logra transmitir esa idea a través de la forma en que las partículas se agrupan y cambian su rumbo.
+
+2. __Los tipos, cantidades, matriz y parámetros están justificados desde la intención__ (90%)
+
+Cada población tiene un comportamiento definido según su rol dentro del sistema. La matriz de relaciones, la cantidad de partículas y los parámetros físicos fueron ajustados para reforzar la idea de cooperación y competencia, aunque todavía podrían explorarse más configuraciones para encontrar un equilibrio aún más preciso.
+
+3. __Comprendo y puedo modificar el funcionamiento técnico del sistema__ (70%)
+
+Aunque puedo realizar cambios y entender su efecto general, siento que aún me falta profundizar en la parte técnica para explicar con mayor seguridad todos los procesos del sistema.
+
+4. __El sistema produce variaciones con una identidad reconocible__ (90%)
+
+Cada ejecución genera patrones diferentes gracias a la aleatoriedad en la distribución inicial y otros parámetros variables.
+
+5. __Experimenté, comparé, seleccioné y descarté con criterios claros__ (80%)
+
+Realicé diferentes pruebas modificando la matriz de relaciones para observar cómo cambian el comportamiento del sistema. Aunque registré varias pruebas, considero que podría haber documentado con mayor detalle cada iteración del proceso y pude intentar llegar a un mejor resultado.
+
+6. __Puedo distinguir y sustentar lo diseñado y lo emergente__ (70%)
+
+Puedo identificar cuáles elementos fueron diseñados, como la matriz de relaciones, las cantidades de partículas y los parámetros del sistema. Pero, me cuesta explicar algunos comportamientos que aparecen durante la simulación y cómo cada regla específica los afecta.
 
