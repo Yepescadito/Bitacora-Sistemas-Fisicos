@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Particle Life - Orden vs Caos</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <main class="canvas-panel">
+      <canvas id="simCanvas" aria-label="Simulación de partículas"></canvas>
+      <div class="overlay-stats">
+        <div class="stat">FPS: <span id="fpsValue">--</span></div>
+        <div class="stat">Partículas: <span id="particleCount">--</span></div>
+      </div>
+      <div class="legend">
+        <span class="legend-item legend-nacional">Nacional</span>
+        <span class="legend-item legend-medellin">Santa Fe</span>
+        <span class="legend-item legend-bucaramanga">Bucaramanga</span>
+        <span class="legend-item legend-millonarios">Millonarios</span>
+        <span class="legend-item legend-envigado">Envigado</span>
+      </div>
+    </main>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <h1>Particle Life</h1>
+        <p class="panel-description">Explora la tensión entre orden y caos con cinco poblaciones inspiradas en equipos colombianos.</p>
+
+        <section class="control-group">
+          <h2>Posiciones iniciales</h2>
+          <select id="positionMode">
+            <option value="random">Aleatorio</option>
+            <option value="centered">Centrado</option>
+            <option value="circle">Circular</option>
+            <option value="clusters">Clusters</option>
+          </select>
+        </section>
+
+        <section class="control-group">
+          <h2>Matriz de relaciones</h2>
+          <div id="matrixTable" class="matrix-table"></div>
+          <button id="randomizeMatrixButton">Randomizar matriz</button>
+        </section>
+
+        <section class="control-group team-counts">
+          <h2>Cantidad por equipo</h2>
+          <label>Nacional <input id="count0" type="number" min="5" max="250" step="1" /></label>
+          <label>Santa Fe <input id="count1" type="number" min="5" max="250" step="1" /></label>
+          <label>Bucaramanga <input id="count2" type="number" min="5" max="250" step="1" /></label>
+          <label>Millonarios <input id="count3" type="number" min="5" max="250" step="1" /></label>
+          <label>Envigado <input id="count4" type="number" min="5" max="250" step="1" /></label>
+        </section>
+
+        <section class="control-group">
+          <h2>Parámetros</h2>
+          <label>Radio de interacción <span id="interactionRadiusValue"></span>
+            <input id="interactionRadius" type="range" min="40" max="240" step="1" />
+          </label>
+          <label>Fuerza máxima <span id="maxForceValue"></span>
+            <input id="maxForce" type="range" min="0.01" max="0.6" step="0.01" />
+          </label>
+          <label>Aceleración máxima <span id="maxAccelValue"></span>
+            <input id="maxAccel" type="range" min="0.05" max="2.5" step="0.05" />
+          </label>
+          <label>Fricción <span id="frictionValue"></span>
+            <input id="friction" type="range" min="0.80" max="0.99" step="0.01" />
+          </label>
+          <label>Velocidad máxima <span id="maxSpeedValue"></span>
+            <input id="maxSpeed" type="range" min="1" max="8" step="0.1" />
+          </label>
+          <label>Tamaño de partículas <span id="particleSizeValue"></span>
+            <input id="particleSize" type="range" min="2" max="12" step="1" />
+          </label>
+        </section>
+
+        <section class="control-group button-row">
+          <button id="pauseButton">Pausar</button>
+          <button id="resumeButton">Continuar</button>
+          <button id="resetButton">Reset</button>
+          <button id="newSimulationButton">Nueva simulación</button>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="matrix.js"></script>
+  <script src="particle.js"></script>
+  <script src="simulation.js"></script>
+  <script src="ui.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
