@@ -2,28 +2,31 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Bus Kuramoto — Completo (RK4)</title>
+  <title>Bus Kuramoto — Bus escolar (RK4)</title>
   <script src="https://cdn.jsdelivr.net/npm/p5@1.6.0/lib/p5.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
   <style>
     body { margin:0; background:#111; color:#eee; font-family:sans-serif; }
-    #ui { position:fixed; left:0; right:0; bottom:0; background:rgba(20,20,20,0.95); padding:10px; display:flex; gap:12px; align-items:center; }
+    #ui { position:fixed; left:0; right:0; bottom:0; background:rgba(20,20,20,0.95); padding:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
     .ctrl { color:#ddd; font-size:13px; display:flex; gap:6px; align-items:center; }
-    input[type=range] { width:160px; }
-    button { padding:8px 12px; font-size:14px; cursor:pointer; }
+    input[type=range] { width:150px; }
+    button { padding:8px 14px; font-size:14px; cursor:pointer; border-radius:6px; border:none; font-weight:700; }
+    #toggle { background:#f7c838; color:#2a2010; }
+    #toggle.running { background:#c0392b; color:#fff; }
     #state { padding:6px 10px; border-radius:6px; font-weight:700; }
+    .hint { color:#888; font-size:12px; }
   </style>
 </head>
 <body>
 <div id="ui">
+  <div class="ctrl"><button id="toggle">▶ Arrancar</button></div>
   <div class="ctrl">K: <input id="K" type="range" min="0" max="5" step="0.01" value="1.8"></div>
   <div class="ctrl">D (diversidad): <input id="D" type="range" min="0" max="2" step="0.01" value="0.4"></div>
   <div class="ctrl">r_partial: <input id="rP" type="range" min="0" max="1" step="0.01" value="0.45"></div>
   <div class="ctrl">r_stable: <input id="rS" type="range" min="0" max="1" step="0.01" value="0.75"></div>
-  <div class="ctrl"><button id="brake">🚌 FRENAR</button></div>
   <div class="ctrl">Estado: <div id="state" style="margin-left:6px;">—</div></div>
   <div style="flex:1"></div>
-  <div class="ctrl">Seleccionar pasajero: click sobre él</div>
+  <div class="hint">Click sobre un pasajero = seleccionar/perturbar · Arrastrar es simbólico</div>
 </div>
 
 <script>
@@ -101,18 +104,32 @@ class Kuramoto {
 /* ========== Agentes y mapeos visuales/sonoros ========== */
 let system;
 let agents = [];
+// Cada pasajero tiene una nota fija de la pentatónica de LA menor (A C D E G).
+// Cualquier combinación de estas alturas es consonante, así que cuando el
+// Kuramoto sincroniza y los ocho disparan a la vez, el resultado es un acorde
+// (Am add9) y no un choque de alturas al azar como en la versión anterior.
 const roles = [
-  {name:'Dormido1', seatRow:0, seatCol:0},
-  {name:'Celular1', seatRow:0, seatCol:1},
-  {name:'Musica1', seatRow:0, seatCol:2},
-  {name:'Dormido2', seatRow:0, seatCol:3},
-  {name:'Celular2', seatRow:1, seatCol:0},
-  {name:'Musica2', seatRow:1, seatCol:1},
-  {name:'Inquieto', seatRow:1, seatCol:2},
-  {name:'Vendedor', seatRow:1, seatCol:3}
+  {name:'Dormido1', seatRow:0, seatCol:0, note:'A2'},
+  {name:'Celular1', seatRow:0, seatCol:1, note:'A3'},
+  {name:'Musica1', seatRow:0, seatCol:2, note:'E4'},
+  {name:'Dormido2', seatRow:0, seatCol:3, note:'E3'},
+  {name:'Celular2', seatRow:1, seatCol:0, note:'C4'},
+  {name:'Musica2', seatRow:1, seatCol:1, note:'G4'},
+  {name:'Inquieto', seatRow:1, seatCol:2, note:'A4'},
+  {name:'Vendedor', seatRow:1, seatCol:3, note:'C5'}
 ];
 
 let startedAudio = false;
+
+/* ========== Estado de simulación ========== */
+let simState = 'STOPPED';          // 'STOPPED' | 'RUNNING'
+let running = false;               // ¿avanza el integrador Kuramoto?
+const CRUISE = 235;                // velocidad de crucero de la calle (px/s)
+let streetSpeed = 0;               // velocidad actual de scroll
+let streetTarget = 0;              // objetivo al que hace lerp
+let streetOffset = 0;              // desplazamiento acumulado de las marcas viales
+let stopSlide = 0;                 // desplazamiento lateral de la parada (se aleja al arrancar)
+let shakeTimer = 0;
 
 /* util: phase crossing detection (mod 2pi) */
 function crossed(oldPhase, newPhase, targetAngle, window=0.2){
@@ -134,10 +151,13 @@ function createAgentsFromSystem(sys){
     agents.push({
       id: i,
       name: role.name,
+      note: role.note,
       seatRow: role.seatRow,
       seatCol: role.seatCol,
       lastTheta: sys.theta[i],
-      hover:false,
+      boardT: 0,          // 0 = en la parada, 1 = sentado en el bus
+      stopPos: null,      // override simbólico tras arrastrar en la parada
+      drag: null,         // posición mientras se arrastra
       selected:false,
       voice: null
     });
@@ -146,39 +166,102 @@ function createAgentsFromSystem(sys){
 
 /* ========== p5 + UI ========== */
 let canvas;
+let L = null;  // layout derivado, recalculado cada frame
+
 function setup(){
-  canvas = createCanvas(windowWidth, windowHeight-100);
-  canvas.mousePressed(handleCanvasClick);
+  canvas = createCanvas(windowWidth, windowHeight-110);
   system = new Kuramoto(N, parseFloat(select('#K').value()), 1.0, parseFloat(select('#D').value()));
   createAgentsFromSystem(system);
   frameRate(60);
 
   select('#K').input(()=>{ system.setK(parseFloat(select('#K').value())); });
   select('#D').input(()=>{ system.setD(parseFloat(select('#D').value())); });
-  select('#rP').input(()=>{});
-  select('#rS').input(()=>{});
-  select('#brake').mousePressed(()=>{ applyBrake(); });
+  select('#toggle').mousePressed(onToggle);
 
   getAudioVoices();
 }
 
+function onToggle(){
+  ensureAudioStarted();
+  if (simState === 'STOPPED'){
+    // ARRANCAR: el bus parte, los pasajeros suben y la calle acelera hasta crucero.
+    simState = 'RUNNING';
+    running = true;
+    streetTarget = CRUISE;
+    for (let a of agents) a.lastTheta = system.theta[a.id];
+    const b = select('#toggle');
+    b.html('🛑 Frenar');
+    b.addClass('running');
+  } else {
+    // FRENAR: golpe de freno -> todos se desincronizan y la calle se detiene y
+    // vuelve a hacer lerp hasta la velocidad de crucero.
+    applyBrake();
+  }
+}
+
+/*
+  Por qué la versión anterior sonaba "erratica y horrible":
+
+  - Celular -> Tone.MembraneSynth: es un sintetizador de PERCUSIÓN (bombo) con un
+    barrido de tono descendente incorporado. Al pedirle notas melódicas (C4/G4)
+    respondía con golpes graves y desafinados, ajenos a cualquier escala.
+  - Vendedor -> Tone.NoiseSynth: sólo produce ruido blanco. Nunca se integra con
+    material tonal, así que ni siquiera en sincronía total dejaba de sonar a
+    estática pinchada.
+  - Musica -> AMSynth con modulationIndex:8  e  Inquieto -> FMSynth por defecto
+    (modulationIndex:10): índices de modulación tan altos generan bandas laterales
+    metálicas e inarmónicas: campanas desafinadas.
+  - Cada voz vivía en su propio conjunto de alturas (Hz crudos 150/190/230...,
+    C/G, E/B, A/A en octavas distintas). No formaban un acorde ni con sincronía
+    perfecta: r=1 sonaba tan revuelto como r=0.
+
+  Arreglo: (1) una sola familia tímbrica -ataques redondeados, sin modulación
+  agresiva, todo pasa por un filtro paso-bajo, reverb y limitador comunes que
+  funden las voces en un cuerpo- y (2) una única escala (pentatónica de A menor)
+  fijada en `roles`. Así, cuando el Kuramoto sincroniza, los ocho disparos
+  simultáneos caen en un acorde consonante y con pulso; cuando r baja, las mismas
+  notas gotean sin alinearse. La diferencia r≈0 / r≈1 pasa a oírse como
+  desorden rítmico  vs.  acorde rítmico.
+*/
 function makeVoiceForAgent(name){
-  if (name.startsWith('Dormido')) return new Tone.Synth({ oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.1, release:0.5} });
-  if (name.startsWith('Celular')) return new Tone.MembraneSynth();
-  if (name.startsWith('Musica'))  return new Tone.AMSynth({harmonicity:2, modulationIndex:8});
-  if (name === 'Inquieto')        return new Tone.FMSynth();
-  if (name === 'Vendedor')        return new Tone.NoiseSynth();
+  if (name.startsWith('Dormido'))
+    // seno puro, ataque lento y release largo: capa grave tipo pad, se mezcla sin destacar
+    return new Tone.Synth({ oscillator:{type:'sine'},
+      envelope:{attack:0.08, decay:0.3, sustain:0.25, release:1.4}, volume:-9 });
+  if (name.startsWith('Celular'))
+    // cuerda pulsada (Karplus-Strong): "blip" de notificación pero afinado y suave
+    return new Tone.PluckSynth({ attackNoise:0.6, dampening:4000, resonance:0.85, volume:-7 });
+  if (name.startsWith('Musica'))
+    // AM con modulationIndex bajo: timbre de vibráfono, cálido, sin bandas metálicas
+    return new Tone.AMSynth({ harmonicity:1.5, modulationIndex:2,
+      oscillator:{type:'triangle'}, modulation:{type:'sine'},
+      envelope:{attack:0.03, decay:0.25, sustain:0.15, release:0.9}, volume:-13 });
+  if (name === 'Inquieto')
+    // FM con índice bajo y release corto: pizzicato nervioso, no campana disonante
+    return new Tone.FMSynth({ harmonicity:1, modulationIndex:1.5,
+      oscillator:{type:'triangle'}, modulation:{type:'sine'},
+      envelope:{attack:0.02, decay:0.18, sustain:0, release:0.4},
+      modulationEnvelope:{attack:0.05, decay:0.2, sustain:0, release:0.3}, volume:-15 });
+  if (name === 'Vendedor')
+    // triángulo staccato en vez de ruido blanco: acento breve que sí afina con el resto
+    return new Tone.Synth({ oscillator:{type:'triangle'},
+      envelope:{attack:0.01, decay:0.14, sustain:0, release:0.3}, volume:-17 });
   return null;
 }
 
+let audioMaster = null;
 function getAudioVoices(){
-  // One voice per passenger. Two passengers sharing a monophonic synth made
-  // simultaneous phase-crossings collide inside Tone.js and throw, which aborted
-  // draw() mid-frame and blanked the canvas.
-  const out = new Tone.Gain(0.35).toDestination();
+  // Cadena común: filtro paso-bajo (quita brillo áspero) -> reverb (cola compartida
+  // que pega las voces) -> limitador (evita saturar cuando los ocho disparan juntos
+  // en sincronía).
+  const lowpass = new Tone.Filter(4200, 'lowpass');
+  const reverb  = new Tone.Freeverb({ roomSize:0.72, dampening:2600, wet:0.22 });
+  const limiter = new Tone.Limiter(-4);
+  audioMaster = new Tone.Gain(0.55);
+  audioMaster.chain(lowpass, reverb, limiter, Tone.Destination);
   for (let a of agents){
     const v = makeVoiceForAgent(a.name);
-    if (v){ v.connect(out); a.voice = v; }
+    if (v){ v.connect(audioMaster); a.voice = v; }
   }
 }
 
@@ -191,260 +274,161 @@ function ensureAudioStarted(){
 
 function applyBrake(){
   ensureAudioStarted();
-  // Global hard brake: jolt every passenger out of rhythm so synchrony (r)
-  // visibly collapses, then watch the coupling pull the bus back together.
   const TAU = Math.PI * 2;
   for (let i=0;i<system.N;i++){
     system.theta[i] = Math.random() * TAU;
   }
-  // Re-baseline crossing detection so the jump itself doesn't fire a burst of notes.
   for (let a of agents) a.lastTheta = system.theta[a.id];
+  streetSpeed = 0;            // la calle se detiene en seco...
+  streetTarget = CRUISE;      // ...y vuelve a acelerar hasta crucero
   flashTimer = 0.25;
+  shakeTimer = 0.4;
 }
 
-function handleCanvasClick(){
+/* ========== Interacción: click (selección/perturbación) y arrastre simbólico ========== */
+let dragAgent = null, dragStart = null, dragMoved = false;
+
+function mousePressed(){
+  if (mouseY < 0 || mouseY > height) return;
   ensureAudioStarted();
-  const mx = mouseX, my = mouseY;
   for (let a of agents){
-    const pos = agentScreenPos(a);
-    const d = dist(mx, my, pos.x, pos.y);
-    if (d < 28){
-      a.selected = !a.selected;
-      if (a.selected){
-        const delta = (Math.random()-0.5) * Math.PI/1.2;
-        let t = (system.theta[a.id] + delta) % (2*Math.PI);
-        if (t < 0) t += 2*Math.PI;
-        system.theta[a.id] = t;
-        a.lastTheta = t;
-        triggerAgentEvent(a, 'perturb');
-      }
+    const p = agentDrawPos(a);
+    if (dist(mouseX, mouseY, p.x, p.y) < 24){
+      dragAgent = a;
+      dragStart = { x: mouseX, y: mouseY };
+      dragMoved = false;
+      return;
     }
   }
 }
 
-function busLayout(){
-  const margin = 60;
-  const w = width - margin*2;
-  const h = height - margin*2;
-  const bus = { x:margin, y:margin, w:w, h:h };
-  return bus;
+function mouseDragged(){
+  if (!dragAgent) return;
+  dragAgent.drag = { x: mouseX, y: mouseY };
+  if (dist(mouseX, mouseY, dragStart.x, dragStart.y) > 6) dragMoved = true;
 }
 
-function swayAmp(){
-  // How far every passenger drifts from its seat at the extremes of its phase.
-  return 24;
+function mouseReleased(){
+  if (!dragAgent) return;
+  if (!dragMoved){
+    // click limpio: seleccionar y perturbar la fase
+    const a = dragAgent;
+    a.selected = !a.selected;
+    if (a.selected){
+      const delta = (Math.random()-0.5) * Math.PI/1.2;
+      let t = (system.theta[a.id] + delta) % (2*Math.PI);
+      if (t < 0) t += 2*Math.PI;
+      system.theta[a.id] = t;
+      a.lastTheta = t;
+      triggerAgentEvent(a, 'perturb');
+    }
+  } else if (simState === 'STOPPED'){
+    // arrastre simbólico: mientras el bus está detenido, el pasajero se queda
+    // donde lo sueltes en la parada. No es condición para arrancar.
+    dragAgent.stopPos = { x: mouseX, y: mouseY };
+  }
+  dragAgent.drag = null;
+  dragAgent = null;
 }
 
-function busSeatGrid(){
-  const bus = busLayout();
-  const cols = 4, rows = 2;
-  const cx = bus.x + bus.w / 2;
-  const cy = bus.y + bus.h / 2;
-  const colGap = Math.min(170, bus.w * 0.2);
-  const rowGap = Math.min(280, bus.h * 0.44);   // vertical space between the two benches = the corridor
-  return { bus, cols, rows, cx, cy, colGap, rowGap };
+/* ========== Layout ========== */
+function computeLayout(shX, shY, stopDX){
+  const W = width, H = height;
+  const roadH = Math.min(H*0.60, 470);
+  const stopH = Math.max(90, Math.min(H*0.19, 165));
+  const gap = 22;
+  const hintSpace = 56;                       // aire bajo la parada para el texto de ayuda
+  const contentH = roadH + gap + stopH + hintSpace;
+  const roadTop = Math.max(24, (H - contentH)/2);   // bloque completo centrado en vertical
+  const roadBottom = roadTop + roadH;
+  const busW = Math.min(W*0.64, 900);
+  const busH = Math.min(roadH*0.60, busW*0.42);
+  const busCX = W/2 + shX;
+  const busCY = roadTop + roadH*0.46 + shY;
+  const stopY = roadBottom + gap;
+  const stopW = Math.min(busW*0.8, W*0.62);
+  const stopCX = W/2 + (stopDX || 0);
+  const stopCY = stopY + stopH/2;
+  return { W,H, roadTop, roadH, roadBottom, busW, busH, busCX, busCY, stopY, stopH, stopW, stopCX, stopCY };
 }
 
-function agentHomePos(agent){
-  // Two benches of four, centered on the middle of the screen, with a horizontal
-  // corridor between them. Every passenger is a plain seat now.
-  const g = busSeatGrid();
-  const c = agent.seatCol;                 // 0..3 across
-  const r = agent.seatRow;                 // 0 top bench, 1 bottom bench
-  const x = g.cx + (c - (g.cols - 1) / 2) * g.colGap;
-  const y = g.cy + (r - (g.rows - 1) / 2) * g.rowGap;
-  return { x, y };
+function swayAmp(){ return 15; }
+function easeInOut(t){ t = constrain(t,0,1); return t*t*(3-2*t); }
+
+function seatColX(col){
+  const x0 = L.busCX - L.busW*0.30;
+  const x3 = L.busCX + L.busW*0.16;
+  return x0 + col*(x3 - x0)/3;
+}
+function seatRowY(row){
+  return row===0 ? L.busCY - L.busH*0.24 : L.busCY + L.busH*0.24;
+}
+function seatHome(a){ return { x: seatColX(a.seatCol), y: seatRowY(a.seatRow) }; }
+
+function stopSlot(a){
+  const i = a.id;
+  const topN = 5;
+  const spanX = L.stopW * 0.76;
+  const step = spanX / (topN - 1);
+  if (i < topN){
+    return { x: L.stopCX - spanX/2 + step*i, y: L.stopCY - L.stopH*0.16 };
+  } else {
+    const j = i - topN;          // 0..2
+    const botN = 3;
+    const span2 = step * (botN - 1);
+    return { x: L.stopCX - span2/2 + step*j, y: L.stopCY + L.stopH*0.20 };
+  }
 }
 
-function agentScreenPos(agent){
-  // Position is a pure function of the agent's Kuramoto phase, so convergence is
-  // entirely emergent: raising K makes the coupling term pull every phase toward
-  // the others, their offset vectors become identical, and the whole bus sways
-  // in lockstep. Scattered phases -> passengers scattered around their seats.
-  const home = agentHomePos(agent);
+function agentDrawPos(agent){
+  if (agent.drag) return agent.drag;
+  const seat = seatHome(agent);
+  const start = agent.stopPos || stopSlot(agent);
+  const e = easeInOut(agent.boardT);
+  const bx = lerp(start.x, seat.x, e);
+  const by = lerp(start.y, seat.y, e);
+  // El bamboleo (mapeo de la fase Kuramoto) sólo aparece cuando ya está sentado.
   const th = system.theta[agent.id];
-  const amp = swayAmp();
-  return { x: home.x + Math.cos(th)*amp, y: home.y + Math.sin(th)*amp*0.8 };
+  const amp = swayAmp() * e;
+  return { x: bx + Math.cos(th)*amp, y: by + Math.sin(th)*amp*0.8 };
 }
 
+/* ========== Sonido ========== */
 function triggerAgentEvent(agent, reason='phase'){
   const v = agent.voice;
   if (!v) return;
+  const note = agent.note || 'A3';
   try {
-    if (agent.name.startsWith('Dormido')){
-      if (reason==='phase'){
-        const freq = 150 + 40*agent.id;
-        v.triggerAttackRelease(freq, '8n');
-      } else if (reason==='perturb'){
-        v.triggerAttackRelease(220, '16n');
-      }
-    } else if (agent.name.startsWith('Celular')){
-      if (reason==='phase') v.triggerAttackRelease('C4', '16n');
-      else v.triggerAttackRelease('G4', '32n');
-    } else if (agent.name.startsWith('Musica')){
-      if (reason==='phase') v.triggerAttackRelease('E4', '8n');
-      else v.triggerAttackRelease('B3', '16n');
-    } else if (agent.name === 'Inquieto'){
-      if (reason==='phase') v.triggerAttackRelease('A3', '16n');
-      else v.triggerAttackRelease('A4', '8n');
-    } else if (agent.name === 'Vendedor'){
-      if (reason==='phase') {
-        v.triggerAttackRelease('32n');
-      } else v.triggerAttackRelease('16n');
+    if (reason === 'perturb'){
+      // perturbación manual (click): la nota propia una octava arriba y staccato.
+      // Se oye como un "pellizco" que resalta sin salirse de la escala.
+      v.triggerAttackRelease(Tone.Frequency(note).transpose(12), '16n');
+    } else {
+      // cruce de fase: siempre la MISMA nota del pasajero y la MISMA duración.
+      // Al ser fija, si el Kuramoto está sincronizado los ocho disparos coinciden
+      // en el tiempo y se perciben como un acorde con pulso; si r es bajo, esas
+      // mismas notas llegan descolocadas y suenan como goteo sin ritmo.
+      v.triggerAttackRelease(note, '8n');
     }
-  } catch (e) {
-    // Tone.js throws if a monophonic voice is retriggered at the same audio
-    // time; swallow it so sound scheduling can never abort the rendered frame.
-  }
+  } catch (e) { /* Tone.js: ignorar retrigger simultáneo para no abortar el frame */ }
 }
 
-let flashTimer = 0;
-function draw(){
-  background(18);
-  const bus = busLayout();
-
-  let dt = deltaTime/1000;
-  if (!isFinite(dt) || dt<=0) dt = 1/60;
-  dt = Math.min(dt, 0.1); // cap catch-up so returning to a hidden tab can't freeze in a huge synchronous loop
-  const maxStep = 0.02;
-  const steps = Math.max(1, Math.ceil(dt / maxStep));
-  const stepDt = dt / steps;
-  for (let i=0;i<steps;i++) system.step(stepDt);
-
-  noStroke();
-  fill(30);
-  rect(bus.x, bus.y, bus.w, bus.h, 12);
-
-  for (let a of agents){
-    const home = agentHomePos(a);
-    const p = agentScreenPos(a);
-    // Faint guide ring at each seat: the arc the passenger traces from its phase.
-    // Scattered = desync; all eight rings traced in unison = the system converged.
-    noFill();
-    stroke(255, 16);
-    strokeWeight(1);
-    const amp = swayAmp();
-    ellipse(home.x, home.y, amp*2, amp*2*0.8);
-    push();
-    translate(p.x, p.y);
-    const th = system.theta[a.id];
-    noStroke();
-    fill(200);
-    ellipse(0,0,36,36);
-    // phase indicator: small line showing theta direction
-    stroke(40);
-    strokeWeight(2);
-    const angLine = th - Math.PI/2;
-    const lx = Math.cos(angLine) * 14;
-    const ly = Math.sin(angLine) * 14;
-    line(0,0, lx, ly);
-    noStroke();
-    if (a.name === 'Dormido1'){
-      const t = Math.sin(th);
-      push();
-      translate(0, -4 + 6 * t);
-      rotate(0.2 * Math.sin(th));
-      fill(170);
-      rect(-8, 6, 16, 8, 4);
-      pop();
-      fill(30);
-      arc(-6,-2,8,4, PI, 0);
-      arc(6,-2,8,4, PI, 0);
-    } else if (a.name === 'Dormido2'){
-      const incline = map(Math.sin(th), -1,1,-6,6);
-      push(); translate(0, incline);
-      fill(180);
-      rect(-10,6,20,8,4);
-      pop();
-    } else if (a.name.startsWith('Celular')){
-      const show = Math.cos(th) < 0;
-      fill(show?20:100);
-      rect(-6,2,12,18,3);
-    } else if (a.name.startsWith('Musica')){
-      fill(140);
-      arc(-10,-4,12,12, PI/2, 3*PI/2);
-      arc(10,-4,12,12, -PI/2, PI/2);
-      const headTilt = 6 * Math.sin(th);
-      fill(220);
-      ellipse(0, headTilt, 8, 8);
-    } else if (a.name === 'Inquieto'){
-      const leg = 8 * Math.abs(Math.sin(4*th));
-      fill(150);
-      rect(-2,12,4,leg,2);
-    } else if (a.name === 'Vendedor'){
-      fill(255,200,100);
-      rect(-12,8,24,10,4);
-    }
-    if (a.selected){
-      stroke(255,200,0);
-      strokeWeight(2);
-      noFill();
-      ellipse(0,0,44,44);
-    }
-    // debug small labels: theta (rad) and omega
-    fill(180);
-    textSize(10);
-    textAlign(CENTER,TOP);
-    const thLabel = (th).toFixed(2);
-    const om = system.omega[a.id] ? system.omega[a.id].toFixed(2) : '?.?';
-    text(`${thLabel}\n${om}`, 0, 20);
-    pop();
-  }
-
-  const centerX = width - 160;
-  const centerY = 120;
-  const R = 60;
-  noFill();
-  stroke(120);
-  ellipse(centerX, centerY, R*2, R*2);
-  const op = system.orderParameter();
-  for (let i=0;i<system.N;i++){
-    const ang = system.theta[i] - Math.PI/2;
-    const x = centerX + Math.cos(ang)*R;
-    const y = centerY + Math.sin(ang)*R;
-    noStroke();
-    fill(lerpColor(color('#ff6b6b'), color('#6bafff'), i/(N-1)));
-    ellipse(x,y,10,10);
-  }
-  noStroke();
-  fill(80,200,120,140);
-  ellipse(centerX, centerY, op.r*R*2, op.r*R*2);
-  fill(220);
-  textSize(13);
-  textAlign(CENTER,CENTER);
-  text('r: ' + op.r.toFixed(3), centerX, centerY + R + 18);
-
-  const rP = parseFloat(select('#rP').value());
-  const rS = parseFloat(select('#rS').value());
-  const st = select('#state');
-  if (op.r < rP) { st.html('🔴 DESORDEN'); st.style('background','#6b1b1b'); st.style('color','#ffd9d9'); }
-  else if (op.r < rS) { st.html('🟡 ORGANIZACIÓN PARCIAL'); st.style('background','#695b18'); st.style('color','#fff8d6'); }
-  else { st.html('🟢 ORGANIZACIÓN ESTABLE'); st.style('background','#124b24'); st.style('color','#d9ffea'); }
-
-  noStroke(); fill(200); textSize(12); textAlign(LEFT,CENTER);
-  text('BUS — 8 pasajeros', bus.x + 12, bus.y + 12);
-
-  if (flashTimer > 0){
-    flashTimer -= deltaTime/1000;
-    push();
-    fill(255, 200, 60, 80);
-    rect(0,0,width,height);
-    pop();
-  }
-
-  // Sound is triggered after everything is drawn, so a Tone.js hiccup can never
-  // leave a blank frame.
-  updatePhaseSounds();
-}
-
-const PHASE_ANGLES_4 = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
+// Sólo 2 puntos de disparo por vuelta (antes 4). Con 8 pasajeros, 4 ángulos
+// generaban hasta 32 notas por ciclo: una ametralladora en la que el oído ya no
+// distinguía si estaban alineadas o no. Con 2 ángulos, la sincronía se escucha
+// como pulso claro y el desorden como notas sueltas.
+const PHASE_TRIGGER_ANGLES = [0, Math.PI];
 function updatePhaseSounds(){
+  if (!running){
+    for (let a of agents) a.lastTheta = system.theta[a.id];
+    return;
+  }
   for (let a of agents){
     const oldT = a.lastTheta;
     const newT = system.theta[a.id];
-    for (let ang of PHASE_ANGLES_4){
+    for (let ang of PHASE_TRIGGER_ANGLES){
       if (crossed(oldT, newT, ang, 0.12)){
-        triggerAgentEvent(a, 'phase'); // at most one note per passenger per frame
+        triggerAgentEvent(a, 'phase');
         break;
       }
     }
@@ -452,14 +436,337 @@ function updatePhaseSounds(){
   }
 }
 
+/* ========== Dibujo ========== */
+let flashTimer = 0;
+
+function draw(){
+  let dt = deltaTime/1000;
+  if (!isFinite(dt) || dt<=0) dt = 1/60;
+  dt = Math.min(dt, 0.1);
+
+  // --- calle: lerp de velocidad hacia el objetivo (0 detenido, CRUISE en marcha) ---
+  const kv = 1 - Math.exp(-dt/0.9);
+  streetSpeed += (streetTarget - streetSpeed) * kv;
+  streetOffset -= streetSpeed * dt;
+
+  // --- la parada se aleja hacia la izquierda cuando el bus ya está en marcha ---
+  const stopSlideTarget = (simState === 'RUNNING') ? -(width * 0.65 + 260) : 0;
+  stopSlide += (stopSlideTarget - stopSlide) * kv;
+
+  // --- integrador Kuramoto (sólo si el bus está en marcha) ---
+  if (running){
+    const maxStep = 0.02;
+    const steps = Math.max(1, Math.ceil(dt / maxStep));
+    const stepDt = dt / steps;
+    for (let i=0;i<steps;i++) system.step(stepDt);
+  }
+
+  // --- animación de embarque ---
+  for (let a of agents){
+    if (simState === 'RUNNING') a.boardT = Math.min(1, a.boardT + dt/1.4);
+  }
+
+  // --- sacudida de frenado ---
+  let shX = 0, shY = 0;
+  if (shakeTimer > 0){
+    shakeTimer -= dt;
+    const m = Math.max(0, shakeTimer/0.4);
+    shX = random(-3,3) * m;
+    shY = random(-2,2) * m;
+  }
+
+  L = computeLayout(shX, shY, stopSlide);
+
+  background(64);
+  drawRoad();
+  drawBusStop();
+  drawBus();
+  drawPassengers();
+  drawHUD();
+
+  if (flashTimer > 0){
+    flashTimer -= dt;
+    push();
+    noStroke();
+    fill(255, 200, 60, 80);
+    rect(0,0,width,height);
+    pop();
+  }
+
+  updatePhaseSounds();
+}
+
+function drawRoad(){
+  noStroke();
+  // asfalto
+  fill(58);
+  rect(0, L.roadTop, width, L.roadH);
+  // bordes sólidos
+  fill(230);
+  rect(0, L.roadTop + 6, width, 4);
+  rect(0, L.roadBottom - 10, width, 4);
+  // líneas discontinuas (dos carriles) que se desplazan hacia la izquierda
+  const period = 82, dashLen = 42;
+  const yTop = L.roadTop + L.roadH*0.30;
+  const yBot = L.roadTop + L.roadH*0.70;
+  fill(245, 210, 90);
+  const start = (streetOffset % period);
+  for (let x = start - period; x < width + period; x += period){
+    rect(x, yTop - 3, dashLen, 6);
+    rect(x, yBot - 3, dashLen, 6);
+  }
+}
+
+function drawBusStop(){
+  // acera
+  noStroke();
+  fill(120);
+  rect(0, L.roadBottom, width, L.stopY - L.roadBottom);
+  // bordillo con marcas en movimiento
+  fill(180);
+  rect(0, L.roadBottom, width, 5);
+  fill(90);
+  const period = 60;
+  const start = (streetOffset*0.6 % period);
+  for (let x = start - period; x < width + period; x += period){
+    rect(x, L.roadBottom + 5, 26, 4);
+  }
+
+  // refugio / rectángulo de la parada
+  push();
+  rectMode(CORNER);
+  stroke(40);
+  strokeWeight(3);
+  fill(150);
+  rect(L.stopCX - L.stopW/2, L.stopCY - L.stopH/2, L.stopW, L.stopH, 22);
+  pop();
+
+  // poste + señal "PARADA"
+  push();
+  const px = L.stopCX - L.stopW/2 - 26;
+  stroke(60); strokeWeight(5);
+  line(px, L.stopCY - L.stopH/2, px, L.stopCY + L.stopH/2);
+  noStroke();
+  fill('#c0392b');
+  ellipse(px, L.stopCY - L.stopH/2 + 4, 34, 34);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  textSize(9);
+  textStyle(BOLD);
+  text('BUS', px, L.stopCY - L.stopH/2 + 4);
+  textStyle(NORMAL);
+  pop();
+
+}
+
+function drawBus(){
+  const cx = L.busCX, cy = L.busCY, bw = L.busW, bh = L.busH;
+  push();
+  rectMode(CENTER);
+
+  // sombra
+  noStroke();
+  fill(0, 0, 0, 70);
+  rect(cx + 6, cy + 12, bw, bh, 26);
+
+  // ruedas (vista superior: sobresalen por los bordes largos)
+  noStroke();
+  fill(24);
+  const wheelW = bw*0.05, wheelH = 24;
+  for (const wx of [cx - bw*0.34, cx + bw*0.30]){
+    rect(wx, cy - bh/2, wheelW, wheelH, 5);
+    rect(wx, cy + bh/2, wheelW, wheelH, 5);
+  }
+
+  // espejos delanteros (lado derecho = frente)
+  stroke(40); strokeWeight(3);
+  line(cx + bw/2, cy - bh*0.30, cx + bw/2 + 16, cy - bh*0.42);
+  line(cx + bw/2, cy + bh*0.30, cx + bw/2 + 16, cy + bh*0.42);
+  noStroke(); fill(35);
+  ellipse(cx + bw/2 + 18, cy - bh*0.44, 10, 18);
+  ellipse(cx + bw/2 + 18, cy + bh*0.44, 10, 18);
+
+  // carrocería amarilla
+  stroke(42); strokeWeight(3);
+  fill('#F7C838');
+  rect(cx, cy, bw, bh, 26);
+
+  // franja negra perimetral (detalle de bus escolar)
+  noFill(); stroke(30); strokeWeight(4);
+  rect(cx, cy, bw - 14, bh - 14, 20);
+
+  // habitáculo / ventanal (desplazado hacia atrás, deja la cabina a la derecha)
+  noFill(); stroke(42); strokeWeight(2);
+  rect(cx - bw*0.09, cy, bw*0.72, bh*0.78, 16);
+
+  // parabrisas delantero
+  noFill(); stroke(42); strokeWeight(3);
+  arc(cx + bw/2 - 4, cy, 34, bh*0.66, -HALF_PI, HALF_PI);
+
+  // puerta plegable (lado derecho)
+  rectMode(CENTER);
+  fill('#cfe3ef'); stroke(42); strokeWeight(2);
+  rect(cx + bw*0.30, cy + bh*0.42, 46, 12, 5);
+
+  // escotilla de techo (capsula central)
+  fill('#e7b52f'); stroke(42); strokeWeight(2);
+  rect(cx + bw*0.14, cy, 16, bh*0.34, 6);
+
+  // asientos: 2 bancas x 4 (primitivas, estilo plano cenital)
+  const step = (seatColX(3) - seatColX(0)) / 3;
+  for (let row=0; row<2; row++){
+    for (let col=0; col<4; col++){
+      drawSeat(seatColX(col), seatRowY(row), step);
+    }
+  }
+
+  pop();
+}
+
+function drawSeat(x, y, step){
+  push();
+  translate(x, y);
+  rectMode(CENTER);
+  const sw = step*0.60, sh = L.busH*0.30;
+  stroke(70); strokeWeight(2);
+  fill('#8d8d8d');
+  rect(-sw*0.26, 0, sw*0.44, sh, 8);
+  rect( sw*0.26, 0, sw*0.44, sh, 8);
+  pop();
+}
+
+function drawPassengers(){
+  for (let a of agents){
+    const home = seatHome(a);
+    const p = agentDrawPos(a);
+    const seated = easeInOut(a.boardT);
+
+    // anillo guía en el asiento: el arco que traza la fase del pasajero
+    if (seated > 0.05){
+      noFill();
+      stroke(255, 18 * seated);
+      strokeWeight(1);
+      const amp = swayAmp() * seated;
+      ellipse(home.x, home.y, amp*2, amp*2*0.8);
+    }
+
+    push();
+    translate(p.x, p.y);
+    const th = system.theta[a.id];
+
+    noStroke();
+    fill(216);
+    ellipse(0, 0, 30, 30);
+
+    // indicador de fase
+    stroke(50); strokeWeight(2);
+    const angLine = th - Math.PI/2;
+    line(0, 0, Math.cos(angLine)*12, Math.sin(angLine)*12);
+    noStroke();
+
+    // doodle por rol
+    if (a.name === 'Dormido1'){
+      push();
+      translate(0, -3 + 5 * Math.sin(th));
+      rotate(0.2 * Math.sin(th));
+      fill(170); rect(-8, 5, 16, 7, 4);
+      pop();
+      fill(40);
+      arc(-5,-2,7,4, PI, 0);
+      arc(5,-2,7,4, PI, 0);
+    } else if (a.name === 'Dormido2'){
+      const incline = map(Math.sin(th), -1,1,-5,5);
+      push(); translate(0, incline);
+      fill(180); rect(-9,5,18,7,4);
+      pop();
+    } else if (a.name.startsWith('Celular')){
+      fill(Math.cos(th) < 0 ? 20 : 100);
+      rect(-5, 2, 10, 15, 3);
+    } else if (a.name.startsWith('Musica')){
+      fill(140);
+      arc(-9,-3,10,10, PI/2, 3*PI/2);
+      arc(9,-3,10,10, -PI/2, PI/2);
+      fill(225);
+      ellipse(0, 5 * Math.sin(th), 7, 7);
+    } else if (a.name === 'Inquieto'){
+      fill(150);
+      rect(-2, 10, 4, 7 * Math.abs(Math.sin(4*th)), 2);
+    } else if (a.name === 'Vendedor'){
+      fill(255,200,100);
+      rect(-11, 7, 22, 9, 4);
+    }
+
+    if (a.selected){
+      stroke(255,200,0); strokeWeight(2); noFill();
+      ellipse(0,0,40,40);
+      noStroke();
+      fill(200);
+      textSize(9);
+      textAlign(CENTER, TOP);
+      const om = system.omega[a.id] ? system.omega[a.id].toFixed(2) : '?.?';
+      text(`θ ${th.toFixed(2)}  ω ${om}`, 0, 20);
+    }
+    pop();
+  }
+}
+
+function drawHUD(){
+  // disco del parámetro de orden (esquina inferior derecha del lienzo)
+  const R = 44;
+  const cx = width - R - 32;
+  const cy = height - R - 28;
+  noFill(); stroke(150); strokeWeight(1.5);
+  ellipse(cx, cy, R*2, R*2);
+  const op = system.orderParameter();
+  for (let i=0;i<system.N;i++){
+    const ang = system.theta[i] - Math.PI/2;
+    noStroke();
+    fill(lerpColor(color('#ff6b6b'), color('#6bafff'), i/(N-1)));
+    ellipse(cx + Math.cos(ang)*R, cy + Math.sin(ang)*R, 9, 9);
+  }
+  noStroke();
+  fill(80,200,120,140);
+  ellipse(cx, cy, op.r*R*2, op.r*R*2);
+  fill(220);
+  textSize(12);
+  textAlign(CENTER, CENTER);
+  text('r ' + op.r.toFixed(3), cx, cy - R - 12);
+  fill(150);
+  textSize(10);
+  text('sincronía', cx, cy + R + 12);
+
+  // lectura de estado (DESORDEN / PARCIAL / ESTABLE)
+  const rP = parseFloat(select('#rP').value());
+  const rS = parseFloat(select('#rS').value());
+  const st = select('#state');
+  if (simState === 'STOPPED'){
+    st.html('⏸ DETENIDO — pulsa Arrancar');
+    st.style('background','#333'); st.style('color','#ddd');
+  } else if (op.r < rP){
+    st.html('🔴 DESORDEN'); st.style('background','#6b1b1b'); st.style('color','#ffd9d9');
+  } else if (op.r < rS){
+    st.html('🟡 ORGANIZACIÓN PARCIAL'); st.style('background','#695b18'); st.style('color','#fff8d6');
+  } else {
+    st.html('🟢 ORGANIZACIÓN ESTABLE'); st.style('background','#124b24'); st.style('color','#d9ffea');
+  }
+
+  if (simState === 'STOPPED'){
+    noStroke();
+    fill(255, 235, 150);
+    textSize(16);
+    textAlign(CENTER, CENTER);
+    text('▶  Pulsa "Arrancar": los pasajeros suben y el bus arranca',
+         width/2, Math.min(height - 30, L.stopCY + L.stopH/2 + 44));
+  }
+}
+
 function windowResized(){
-  resizeCanvas(windowWidth, windowHeight-100);
+  resizeCanvas(windowWidth, windowHeight-110);
 }
 
 function lerpColor(a,b,t){
   return color( (1-t)*red(a) + t*red(b), (1-t)*green(a)+t*green(b), (1-t)*blue(a)+t*blue(b) );
 }
-
 </script>
 </body>
 </html>
