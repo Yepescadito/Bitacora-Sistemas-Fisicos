@@ -112,7 +112,6 @@ const roles = [
   {name:'Vendedor', seatRow:1, seatCol:0}
 ];
 
-let synths = {};
 let startedAudio = false;
 
 /* util: phase crossing detection (mod 2pi) */
@@ -163,18 +162,23 @@ function setup(){
   getAudioVoices();
 }
 
+function makeVoiceForAgent(name){
+  if (name.startsWith('Dormido')) return new Tone.Synth({ oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.1, release:0.5} });
+  if (name.startsWith('Celular')) return new Tone.MembraneSynth();
+  if (name.startsWith('Musica'))  return new Tone.AMSynth({harmonicity:2, modulationIndex:8});
+  if (name === 'Inquieto')        return new Tone.FMSynth();
+  if (name === 'Vendedor')        return new Tone.NoiseSynth();
+  return null;
+}
+
 function getAudioVoices(){
-  synths.Dormido = new Tone.Synth({ oscillator:{type:'sine'}, envelope:{attack:0.01, decay:0.2, sustain:0.1, release:0.5} }).toDestination();
-  synths.Celular = new Tone.MembraneSynth().toDestination();
-  synths.Musica = new Tone.AMSynth({harmonicity:2, modulationIndex:8}).toDestination();
-  synths.Inquieto = new Tone.FMSynth().toDestination();
-  synths.Vendedor = new Tone.NoiseSynth({burst:true}).toDestination();
+  // One voice per passenger. Two passengers sharing a monophonic synth made
+  // simultaneous phase-crossings collide inside Tone.js and throw, which aborted
+  // draw() mid-frame and blanked the canvas.
+  const out = new Tone.Gain(0.35).toDestination();
   for (let a of agents){
-    if (a.name.startsWith('Dormido')) a.voice = synths.Dormido;
-    else if (a.name.startsWith('Celular')) a.voice = synths.Celular;
-    else if (a.name.startsWith('Musica')) a.voice = synths.Musica;
-    else if (a.name === 'Inquieto') a.voice = synths.Inquieto;
-    else if (a.name === 'Vendedor') a.voice = synths.Vendedor;
+    const v = makeVoiceForAgent(a.name);
+    if (v){ v.connect(out); a.voice = v; }
   }
 }
 
@@ -187,11 +191,14 @@ function ensureAudioStarted(){
 
 function applyBrake(){
   ensureAudioStarted();
+  // Global hard brake: jolt every passenger out of rhythm so synchrony (r)
+  // visibly collapses, then watch the coupling pull the bus back together.
+  const TAU = Math.PI * 2;
   for (let i=0;i<system.N;i++){
-    const dtheta = (Math.random()-0.5)*Math.PI;
-    system.theta[i] = (system.theta[i] + dtheta) % (2*Math.PI);
+    system.theta[i] = Math.random() * TAU;
   }
-  Tone.Transport.scheduleOnce(()=>{}, '+0.01');
+  // Re-baseline crossing detection so the jump itself doesn't fire a burst of notes.
+  for (let a of agents) a.lastTheta = system.theta[a.id];
   flashTimer = 0.25;
 }
 
@@ -205,7 +212,10 @@ function handleCanvasClick(){
       a.selected = !a.selected;
       if (a.selected){
         const delta = (Math.random()-0.5) * Math.PI/1.2;
-        system.theta[a.id] = (system.theta[a.id] + delta) % (2*Math.PI);
+        let t = (system.theta[a.id] + delta) % (2*Math.PI);
+        if (t < 0) t += 2*Math.PI;
+        system.theta[a.id] = t;
+        a.lastTheta = t;
         triggerAgentEvent(a, 'perturb');
       }
     }
@@ -256,26 +266,31 @@ function agentScreenPos(agent){
 function triggerAgentEvent(agent, reason='phase'){
   const v = agent.voice;
   if (!v) return;
-  if (agent.name.startsWith('Dormido')){
-    if (reason==='phase'){
-      const freq = 150 + 40*agent.id;
-      v.triggerAttackRelease(freq, '8n');
-    } else if (reason==='perturb'){
-      v.triggerAttackRelease(220, '16n');
+  try {
+    if (agent.name.startsWith('Dormido')){
+      if (reason==='phase'){
+        const freq = 150 + 40*agent.id;
+        v.triggerAttackRelease(freq, '8n');
+      } else if (reason==='perturb'){
+        v.triggerAttackRelease(220, '16n');
+      }
+    } else if (agent.name.startsWith('Celular')){
+      if (reason==='phase') v.triggerAttackRelease('C4', '16n');
+      else v.triggerAttackRelease('G4', '32n');
+    } else if (agent.name.startsWith('Musica')){
+      if (reason==='phase') v.triggerAttackRelease('E4', '8n');
+      else v.triggerAttackRelease('B3', '16n');
+    } else if (agent.name === 'Inquieto'){
+      if (reason==='phase') v.triggerAttackRelease('A3', '16n');
+      else v.triggerAttackRelease('A4', '8n');
+    } else if (agent.name === 'Vendedor'){
+      if (reason==='phase') {
+        v.triggerAttackRelease('32n');
+      } else v.triggerAttackRelease('16n');
     }
-  } else if (agent.name.startsWith('Celular')){
-    if (reason==='phase') v.triggerAttackRelease('C4', '16n');
-    else v.triggerAttackRelease('G4', '32n');
-  } else if (agent.name.startsWith('Musica')){
-    if (reason==='phase') v.triggerAttackRelease('E4', '8n');
-    else v.triggerAttackRelease('B3', '16n');
-  } else if (agent.name === 'Inquieto'){
-    if (reason==='phase') v.triggerAttackRelease('A3', '16n');
-    else v.triggerAttackRelease('A4', '8n');
-  } else if (agent.name === 'Vendedor'){
-    if (reason==='phase') {
-      v.triggerAttackRelease('32n');
-    } else v.triggerAttackRelease('16n');
+  } catch (e) {
+    // Tone.js throws if a monophonic voice is retriggered at the same audio
+    // time; swallow it so sound scheduling can never abort the rendered frame.
   }
 }
 
@@ -286,36 +301,11 @@ function draw(){
 
   let dt = deltaTime/1000;
   if (!isFinite(dt) || dt<=0) dt = 1/60;
+  dt = Math.min(dt, 0.1); // cap catch-up so returning to a hidden tab can't freeze in a huge synchronous loop
   const maxStep = 0.02;
   const steps = Math.max(1, Math.ceil(dt / maxStep));
   const stepDt = dt / steps;
   for (let i=0;i<steps;i++) system.step(stepDt);
-
-  for (let a of agents){
-    const idx = a.id;
-    const oldT = a.lastTheta;
-    const newT = system.theta[idx];
-    let angles = [];
-    if (a.name === 'Dormido1'){
-      angles = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
-    } else if (a.name === 'Dormido2'){
-      angles = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
-    } else if (a.name.startsWith('Celular')){
-      angles = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
-    } else if (a.name.startsWith('Musica')){
-      angles = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
-    } else if (a.name === 'Inquieto'){
-      angles = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
-    } else if (a.name === 'Vendedor'){
-      angles = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
-    }
-    for (let ang of angles){
-      if (crossed(oldT, newT, ang, 0.12)){
-        triggerAgentEvent(a, 'phase');
-      }
-    }
-    a.lastTheta = newT;
-  }
 
   noStroke();
   fill(30);
@@ -430,6 +420,27 @@ function draw(){
     fill(255, 200, 60, 80);
     rect(0,0,width,height);
     pop();
+  }
+
+  // Sound is triggered after everything is drawn, so a Tone.js hiccup can never
+  // leave a blank frame.
+  updatePhaseSounds();
+}
+
+const PHASE_ANGLES_4 = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
+const PHASE_ANGLES_8 = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
+function updatePhaseSounds(){
+  for (let a of agents){
+    const oldT = a.lastTheta;
+    const newT = system.theta[a.id];
+    const angles = (a.name === 'Vendedor') ? PHASE_ANGLES_8 : PHASE_ANGLES_4;
+    for (let ang of angles){
+      if (crossed(oldT, newT, ang, 0.12)){
+        triggerAgentEvent(a, 'phase'); // at most one note per passenger per frame
+        break;
+      }
+    }
+    a.lastTheta = newT;
   }
 }
 
