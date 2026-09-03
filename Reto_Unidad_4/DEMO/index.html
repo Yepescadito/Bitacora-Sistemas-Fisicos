@@ -106,10 +106,10 @@ const roles = [
   {name:'Celular1', seatRow:0, seatCol:1},
   {name:'Musica1', seatRow:0, seatCol:2},
   {name:'Dormido2', seatRow:0, seatCol:3},
-  {name:'Celular2', seatRow:2, seatCol:0},
-  {name:'Musica2', seatRow:2, seatCol:1},
-  {name:'Inquieto', seatRow:2, seatCol:2},
-  {name:'Vendedor', seatRow:1, seatCol:0}
+  {name:'Celular2', seatRow:1, seatCol:0},
+  {name:'Musica2', seatRow:1, seatCol:1},
+  {name:'Inquieto', seatRow:1, seatCol:2},
+  {name:'Vendedor', seatRow:1, seatCol:3}
 ];
 
 let startedAudio = false;
@@ -230,37 +230,41 @@ function busLayout(){
   return bus;
 }
 
-function agentScreenPos(agent){
+function swayAmp(){
+  // How far every passenger drifts from its seat at the extremes of its phase.
+  return 24;
+}
+
+function busSeatGrid(){
   const bus = busLayout();
-  const seatW = bus.w * 0.18;
-  const seatH = 60;
-  if (agent.name === 'Vendedor'){
-    const idx = agent.id;
-    const theta = system.theta[idx];
-    const t = (theta % (2*Math.PI)) / (2*Math.PI);
-    const aisleX = bus.x + bus.w*0.55;
-    const minY = bus.y + seatH;
-    const maxY = bus.y + bus.h - seatH;
-    const y = lerp(minY, maxY, t);
-    const x = aisleX;
-    return {x,y};
-  } else {
-    if (agent.seatRow === 0){
-      const cols = 4;
-      const gap = bus.w*0.02;
-      const startX = bus.x + bus.w*0.08;
-      const x = startX + agent.seatCol*( (bus.w*0.7 - gap*(cols-1)) / cols ) + 30;
-      const y = bus.y + 60;
-      return {x,y};
-    } else {
-      const cols = 3;
-      const gap = bus.w*0.02;
-      const startX = bus.x + bus.w*0.08;
-      const x = startX + agent.seatCol*( (bus.w*0.7 - gap*(cols-1)) / cols ) + 40;
-      const y = bus.y + bus.h - 100;
-      return {x,y};
-    }
-  }
+  const cols = 4, rows = 2;
+  const cx = bus.x + bus.w / 2;
+  const cy = bus.y + bus.h / 2;
+  const colGap = Math.min(170, bus.w * 0.2);
+  const rowGap = Math.min(280, bus.h * 0.44);   // vertical space between the two benches = the corridor
+  return { bus, cols, rows, cx, cy, colGap, rowGap };
+}
+
+function agentHomePos(agent){
+  // Two benches of four, centered on the middle of the screen, with a horizontal
+  // corridor between them. Every passenger is a plain seat now.
+  const g = busSeatGrid();
+  const c = agent.seatCol;                 // 0..3 across
+  const r = agent.seatRow;                 // 0 top bench, 1 bottom bench
+  const x = g.cx + (c - (g.cols - 1) / 2) * g.colGap;
+  const y = g.cy + (r - (g.rows - 1) / 2) * g.rowGap;
+  return { x, y };
+}
+
+function agentScreenPos(agent){
+  // Position is a pure function of the agent's Kuramoto phase, so convergence is
+  // entirely emergent: raising K makes the coupling term pull every phase toward
+  // the others, their offset vectors become identical, and the whole bus sways
+  // in lockstep. Scattered phases -> passengers scattered around their seats.
+  const home = agentHomePos(agent);
+  const th = system.theta[agent.id];
+  const amp = swayAmp();
+  return { x: home.x + Math.cos(th)*amp, y: home.y + Math.sin(th)*amp*0.8 };
 }
 
 function triggerAgentEvent(agent, reason='phase'){
@@ -310,11 +314,17 @@ function draw(){
   noStroke();
   fill(30);
   rect(bus.x, bus.y, bus.w, bus.h, 12);
-  fill(60);
-  rect(bus.x+bus.w*0.05, bus.y+20, bus.w*0.9, 16, 6);
 
   for (let a of agents){
+    const home = agentHomePos(a);
     const p = agentScreenPos(a);
+    // Faint guide ring at each seat: the arc the passenger traces from its phase.
+    // Scattered = desync; all eight rings traced in unison = the system converged.
+    noFill();
+    stroke(255, 16);
+    strokeWeight(1);
+    const amp = swayAmp();
+    ellipse(home.x, home.y, amp*2, amp*2*0.8);
     push();
     translate(p.x, p.y);
     const th = system.theta[a.id];
@@ -428,13 +438,11 @@ function draw(){
 }
 
 const PHASE_ANGLES_4 = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
-const PHASE_ANGLES_8 = [0, Math.PI/4, Math.PI/2, 3*Math.PI/4, Math.PI, 5*Math.PI/4, 3*Math.PI/2, 7*Math.PI/4];
 function updatePhaseSounds(){
   for (let a of agents){
     const oldT = a.lastTheta;
     const newT = system.theta[a.id];
-    const angles = (a.name === 'Vendedor') ? PHASE_ANGLES_8 : PHASE_ANGLES_4;
-    for (let ang of angles){
+    for (let ang of PHASE_ANGLES_4){
       if (crossed(oldT, newT, ang, 0.12)){
         triggerAgentEvent(a, 'phase'); // at most one note per passenger per frame
         break;
