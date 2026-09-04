@@ -2,7 +2,7 @@
 
 # BusKuramoto
 
-*Resultado: https://editor.p5js.org/Yepescadito/full/m41I8JYBV*
+*Resultado: https://editor.p5js.org/Yepescadito/sketches/C0qW4afXy
 
 # Autoevaluación: 
 
