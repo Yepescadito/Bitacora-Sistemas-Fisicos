@@ -1,8 +1,10 @@
-Reto de Diseño - Unidad 4 / Kuramoto
+## Reto de Diseño - Unidad 4 / Kuramoto
 
-Links
-- <iframe src="https://editor.p5js.org/Yepescadito/full/m41I8JYBV"></iframe>
-- https://editor.p5js.org/Yepescadito/full/m41I8JYBV
+# BusKuramoto
+
+*Resultado: https://editor.p5js.org/Yepescadito/full/m41I8JYBV*
+
+# Autoevaluación: 
 
 Autoevaluación: 
 
