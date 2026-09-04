@@ -1,11 +1,16 @@
 Reto de Diseño - Unidad 4 / Kuramoto
 
-Intención
+Links
+- <iframe src="https://editor.p5js.org/Yepescadito/full/m41I8JYBV"></iframe>
+- https://editor.p5js.org/Yepescadito/full/m41I8JYBV
 
-Contradicción
+Autoevaluación: 
 
-Quiero explorar la tensión entre la cooperación y la competencia.
+1. Leí y verifiqué que mi proyecto cumple con los requisitos mínimos de la unidad: 25 puntos.
+2. Puedo explicar claramente qué representa cada variable del modelo de Kuramoto en mi proyecto: 25 puntos.
+3. Puedo explicar claramente cómo las variables del modelo producen el comportamiento observado en mi proyecto: 25 puntos.
+4. Puedo demostrar que mi proyecto cumple con los objetivos establecidos en la unidad: 25 puntos.
 
-La propuesta toma como inspiración la final de la Liga BetPlay Apertura 2024 entre Atlético Bucaramanga e Independiente Santa Fe. Más allá del resultado deportivo, el proyecto parte de la idea de que, incluso en un contexto altamente competitivo, pueden surgir alianzas temporales alrededor de un objetivo común. No pretende representar un partido de fútbol, sino utilizar esa situación como punto de partida para estudiar cómo comportamientos simples de atracción y repulsión pueden generar dinámicas complejas.
+Nota:
 
-Espero que el sistema produzca momentos donde diferentes poblaciones colaboren para formar estructuras estables, mientras otra población intente romper constantemente esos grupos. De esta manera, la cooperación y la competencia coexistirán en un equilibrio cambiante donde ningún estado será permanente.
+
