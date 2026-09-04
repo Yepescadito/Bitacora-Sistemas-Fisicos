@@ -20,13 +20,14 @@
 <body>
 <div id="ui">
   <div class="ctrl"><button id="toggle">▶ Arrancar</button></div>
+  <div class="ctrl">Pasajeros: <input id="passengerCount" type="range" min="0" max="8" step="1" value="8"><span id="passengerCountValue">8</span></div>
   <div class="ctrl">K: <input id="K" type="range" min="0" max="5" step="0.01" value="1.8"></div>
   <div class="ctrl">D (diversidad): <input id="D" type="range" min="0" max="2" step="0.01" value="0.4"></div>
   <div class="ctrl">r_partial: <input id="rP" type="range" min="0" max="1" step="0.01" value="0.45"></div>
   <div class="ctrl">r_stable: <input id="rS" type="range" min="0" max="1" step="0.01" value="0.75"></div>
   <div class="ctrl">Estado: <div id="state" style="margin-left:6px;">—</div></div>
   <div style="flex:1"></div>
-  <div class="hint">Click sobre un pasajero = seleccionar/perturbar · Arrastrar es simbólico</div>
+  <div class="hint">Arrastra los pasajeros que subirán al bus antes de arrancar</div>
 </div>
 
 <script>
@@ -118,6 +119,10 @@ const roles = [
   {name:'Inquieto', seatRow:1, seatCol:2, note:'A4'},
   {name:'Vendedor', seatRow:1, seatCol:3, note:'C5'}
 ];
+const agentColors = [
+  '#f08a8a', '#f3b562', '#f6df6f', '#8fd694',
+  '#70c1b3', '#72aee6', '#9b8fe8', '#d889c9'
+];
 
 let startedAudio = false;
 
@@ -157,8 +162,12 @@ function createAgentsFromSystem(sys){
       lastTheta: sys.theta[i],
       boardT: 0,          // 0 = en la parada, 1 = sentado en el bus
       stopPos: null,      // override simbólico tras arrastrar en la parada
+      boardingStart: null,
+      boardingSeat: null,
       drag: null,         // posición mientras se arrastra
       selected:false,
+      boarded:false,
+      eliminated:false,
       voice: null
     });
   }
@@ -176,6 +185,9 @@ function setup(){
 
   select('#K').input(()=>{ system.setK(parseFloat(select('#K').value())); });
   select('#D').input(()=>{ system.setD(parseFloat(select('#D').value())); });
+  select('#passengerCount').input(()=>{
+    select('#passengerCountValue').html(select('#passengerCount').value());
+  });
   select('#toggle').mousePressed(onToggle);
 
   getAudioVoices();
@@ -185,6 +197,7 @@ function onToggle(){
   ensureAudioStarted();
   if (simState === 'STOPPED'){
     // ARRANCAR: el bus parte, los pasajeros suben y la calle acelera hasta crucero.
+    prepareBoarding();
     simState = 'RUNNING';
     running = true;
     streetTarget = CRUISE;
@@ -196,6 +209,24 @@ function onToggle(){
     // FRENAR: golpe de freno -> todos se desincronizan y la calle se detiene y
     // vuelve a hacer lerp hasta la velocidad de crucero.
     applyBrake();
+  }
+}
+
+function prepareBoarding(){
+  const count = parseInt(select('#passengerCount').value(), 10);
+  const boardingAgents = agents.filter(agent => agent.boarded).slice(0, count);
+
+  for (let agent of agents){
+    agent.boardT = 0;
+    agent.eliminated = true;
+    agent.boardingStart = null;
+    agent.boardingSeat = null;
+  }
+
+  for (let agent of boardingAgents){
+    agent.eliminated = false;
+    agent.boardingStart = agent.stopPos || stopSlot(agent);
+    agent.boardingSeat = { seatRow: agent.seatRow, seatCol: agent.seatCol };
   }
 }
 
@@ -278,7 +309,9 @@ function applyBrake(){
   for (let i=0;i<system.N;i++){
     system.theta[i] = Math.random() * TAU;
   }
-  for (let a of agents) a.lastTheta = system.theta[a.id];
+  for (let a of agents){
+    a.lastTheta = system.theta[a.id];
+  }
   streetSpeed = 0;            // la calle se detiene en seco...
   streetTarget = CRUISE;      // ...y vuelve a acelerar hasta crucero
   flashTimer = 0.25;
@@ -323,9 +356,9 @@ function mouseReleased(){
       triggerAgentEvent(a, 'perturb');
     }
   } else if (simState === 'STOPPED'){
-    // arrastre simbólico: mientras el bus está detenido, el pasajero se queda
-    // donde lo sueltes en la parada. No es condición para arrancar.
+    // Arrastrar mientras está detenido marca al pasajero para embarcar.
     dragAgent.stopPos = { x: mouseX, y: mouseY };
+    dragAgent.boarded = true;
   }
   dragAgent.drag = null;
   dragAgent = null;
@@ -365,6 +398,14 @@ function seatRowY(row){
 }
 function seatHome(a){ return { x: seatColX(a.seatCol), y: seatRowY(a.seatRow) }; }
 
+function boardingSeatHome(agent){
+  if (!agent.boardingSeat) return seatHome(agent);
+  return {
+    x: seatColX(agent.boardingSeat.seatCol),
+    y: seatRowY(agent.boardingSeat.seatRow)
+  };
+}
+
 function stopSlot(a){
   const i = a.id;
   const topN = 5;
@@ -382,8 +423,8 @@ function stopSlot(a){
 
 function agentDrawPos(agent){
   if (agent.drag) return agent.drag;
-  const seat = seatHome(agent);
-  const start = agent.stopPos || stopSlot(agent);
+  const seat = boardingSeatHome(agent);
+  const start = agent.boardingStart || agent.stopPos || stopSlot(agent);
   const e = easeInOut(agent.boardT);
   const bx = lerp(start.x, seat.x, e);
   const by = lerp(start.y, seat.y, e);
@@ -424,6 +465,7 @@ function updatePhaseSounds(){
     return;
   }
   for (let a of agents){
+    if (a.eliminated) continue;
     const oldT = a.lastTheta;
     const newT = system.theta[a.id];
     for (let ang of PHASE_TRIGGER_ANGLES){
@@ -463,7 +505,9 @@ function draw(){
 
   // --- animación de embarque ---
   for (let a of agents){
-    if (simState === 'RUNNING') a.boardT = Math.min(1, a.boardT + dt/1.4);
+    if (!a.eliminated && simState === 'RUNNING'){
+      a.boardT = Math.min(1, a.boardT + dt/1.4);
+    }
   }
 
   // --- sacudida de frenado ---
@@ -637,6 +681,7 @@ function drawSeat(x, y, step){
 
 function drawPassengers(){
   for (let a of agents){
+    if (a.eliminated) continue;
     const home = seatHome(a);
     const p = agentDrawPos(a);
     const seated = easeInOut(a.boardT);
@@ -655,7 +700,7 @@ function drawPassengers(){
     const th = system.theta[a.id];
 
     noStroke();
-    fill(216);
+    fill(agentColors[a.id]);
     ellipse(0, 0, 30, 30);
 
     // indicador de fase
