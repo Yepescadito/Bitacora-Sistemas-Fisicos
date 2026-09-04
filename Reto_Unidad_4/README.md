@@ -1,7 +1,4 @@
-Reto de Diseño - Unidad 2 / Movimiento
-
-Cooperación vs. Competencia: un sistema generativo inspirado en la final de la Liga BetPlay Apertura 2024
-
+Reto de Diseño - Unidad 4 / Kuramoto
 
 Intención
 
