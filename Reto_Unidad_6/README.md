@@ -23,12 +23,21 @@ Diseñar y desarrollar un instrumento visual para la Web e interpretar en tiempo
 
 | Elemento | Qué es en la canción | Algoritmo |
 |---|---|---|
-| **Bandada** (420 triángulos) | La gente que la sigue y la imita: rápida, se contagia del movimiento de sus vecinos | Flocking + steering (seek/arrive, flee, wander, flow field following) |
+| **Bandada** (420 agentes que pintan) | La gente que la sigue y la imita: rápida, se contagia del movimiento de sus vecinos. Su recorrido queda pintado | Flocking + steering (seek/arrive, flee, wander, flow field following) |
 | **Red** (30 000–70 000 agentes) | La escena, la "influencia": algo lento que se ramifica y conecta todo | Physarum (Jones, 2010) |
 | **Foco** (mouse) | Ella: la referencia | Objetivo de seek/arrive o de flee; deposita o borra rastro |
 | **Campo** (1, 2, 3) | El clima del momento: deriva, el giro de 360°, el estallido | Flow field |
 
 La estética es la de *brat*: **verde lima y negro**, tipografía Arial en minúsculas y borrosa. La tecla I alterna entre la paleta oscura (lima sobre negro) y la paleta brat (negro sobre lima).
+
+### Dos capas: el suelo y la pintura
+
+La imagen tiene dos capas con papeles distintos:
+
+1. **El suelo:** la red del physarum, atenuada (nunca pasa del 55 % de tinta). Es lenta y orgánica y queda de fondo.
+2. **La pintura:** la bandada no se dibuja como figuras. Cada boid deja un trazo fino desde donde estaba hasta donde está, y los trazos **se acumulan**. Lo que se ve es el recorrido de la bandada: hilos, pinceladas, el anillo del 360 hecho de cientos de líneas. Cada boid se ve solo como un punto en la punta de su trazo.
+
+La idea de que el recorrido acumulado se vuelva la imagen la tomé del **trabajo de Sofía** ("The Seed" de AURORA), donde las raíces se dibujan porque el fondo no se borra. La diferencia es que en su obra la amplitud del audio controla la velocidad, el brillo y el campo. Aquí nada depende del audio: lo que se pinta depende de las reglas de los agentes y de mis intervenciones. Además, la pintura no es permanente. Se olvida al mismo ritmo que el rastro del physarum, y los dos se controlan juntos con ↑/↓, que funciona como la **memoria** del sistema. El clic derecho también borra la pintura alrededor del foco.
 
 # Qué percibe cada agente y cómo decide
 
@@ -68,7 +77,7 @@ La estética es la de *brat*: **verde lima y negro**, tipografía Arial en minú
 
 ### El entorno (mapa de rastro)
 
-Es lo que conecta todo. Lo escriben el physarum, los boids, el foco y el texto "360"; solo lo lee el physarum. Cada paso: difusión parcial (mezcla 50 % con el promedio 3×3), evaporación (persistencia, ajustable con ↑/↓) y un **tope** por celda.
+Es lo que conecta todo. Lo escriben el physarum, los boids, el foco y el texto "360"; solo lo lee el physarum. Cada paso: difusión parcial (mezcla 50 % con el promedio 3×3), evaporación (memoria, ajustable con ↑/↓) y un **tope** por celda.
 
 # Qué aporta la combinación
 
@@ -88,7 +97,7 @@ Agrupados en cuatro intenciones:
 | | clic der. / shift+clic | repeler: flee + borrar rastro | percepción + entorno |
 | **Entorno** | 1 · 2 · 3 · 0 | campo: deriva (ruido) · órbita 360 · estallido · sin campo | entorno |
 | | rueda | fuerza del campo | regla |
-| | ↑ / ↓ (sostener) | persistencia del rastro | entorno |
+| | ↑ / ↓ (sostener) | memoria: cuánto duran el rastro del physarum y la pintura de la bandada | entorno |
 | | B (sostener) | escribir "360" en el rastro | entorno |
 | | I | paleta oscura ↔ verde brat | visual |
 | **Percepción** | Z / X (sostener) | radio de percepción de la bandada | percepción |
@@ -139,6 +148,8 @@ El score está en `DEMO/score.js` y se ve en el panel (D) junto con una línea d
 - **Prueba 5:** en modo libre el physarum se engrosaba en pocas bandas gruesas a los 15 s. Bajé la difusión al 50 %, el depósito de los boids (7 → 3) y abrí los sensores (0.42 → 0.6 rad), pero seguía igual. La causa era que el rastro crecía sin límite: un tubo grueso siempre le ganaba a todo lo demás. Con un tope de 8 por celda la red se mantiene ramificada después de 25 s.
 - **Prueba 6:** verifiqué que el control C/V tiene consecuencia visible: con sensores de 4 celdas la red es fina y de celdas pequeñas; con 25, venas gruesas y celdas grandes.
 - **Prueba 7:** la paleta: un tono lineal saturaba el rastro (todo verde plano). Uso `v / (v + 3)`, que con el tope de 8 queda en ~73 % de tinta y deja ver los rastros débiles tenues.
+- **Prueba 8:** no me gustaba cómo se veía: los triángulos blancos encima de la red parecían confeti y se veían genéricos. Tomé la idea del trabajo de Sofía y cambié los triángulos por trazos que se acumulan. Atenué el physarum al 55 % para que quede como suelo. Resultado: en la órbita, el anillo se ve hecho de hilos; en la paleta brat, los trazos se ven como tinta sobre papel lima.
+- **Prueba 9:** al borrar la pintura muy suavemente en cada cuadro quedaba una neblina que nunca desaparecía: con alfa de 8 bits, un borrado del 2 % ya no alcanza a restar nada cuando el trazo es tenue. Ahora, cada 16 cuadros se borra un 12 % extra y el residuo baja a casi nada. Costo a 1080p con la capa nueva: ~8.2 ms por cuadro (6.9 simulación + 1.3 dibujo).
 
 # Actividades 01 y 02: análisis de los referentes
 
@@ -147,6 +158,7 @@ El score está en `DEMO/score.js` y se ve en el panel (D) junto con una línea d
 | Nature of Code, cap. 5 | su posición, su velocidad y un objetivo | `steer = deseada − velocidad`, limitada por fuerza máxima | velocidad y fuerza máximas, el objetivo |
 | Reynolds, *Steering Behaviors* | objetivo, obstáculos, vecinos | combinación ponderada de comportamientos simples | los pesos de cada comportamiento |
 | Tyler Hobbs, *Flow Fields* | el ángulo del campo en su posición | avanza en esa dirección | cómo se construye el campo (ruido, distorsión) |
+| Trabajo de Sofía ("The Seed", AURORA) | solo el ángulo del campo de ruido en su posición; no percibe a otras raíces | el campo es su aceleración; nacen en el centro y se encogen hasta morir; el fondo no se borra y el recorrido se vuelve la imagen | en su versión, nada: la amplitud del audio controla la velocidad, el brillo y el cambio del campo (justo lo que este encargo no permite). Tomé de ella la acumulación del recorrido |
 | Three.js *Birds* | vecinos dentro de un radio | separación, alineación y cohesión | radio de percepción, pesos |
 | Bleuje, *Interactive Physarum* / Patt Vira | el rastro en tres sensores | girar hacia el sensor con más rastro, depositar | ángulo y distancia de los sensores, evaporación, depósitos externos |
 

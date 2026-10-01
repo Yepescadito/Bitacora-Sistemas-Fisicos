@@ -66,7 +66,7 @@
   <table>
     <tr><td>1 · 2 · 3 · 0</td><td>campo: deriva · órbita 360 · estallido · sin campo</td></tr>
     <tr><td>rueda</td><td>fuerza del campo</td></tr>
-    <tr><td>↑ / ↓ (sostener)</td><td>persistencia del rastro</td></tr>
+    <tr><td>↑ / ↓ (sostener)</td><td>memoria: cuánto duran el rastro y la pintura</td></tr>
     <tr><td>B (sostener)</td><td>escribir "360" en el rastro</td></tr>
     <tr><td>I</td><td>paleta: oscura ↔ verde brat</td></tr>
   </table>
@@ -127,6 +127,7 @@ const K = {
   depB: 3.0,       // depósito de cada boid
   difu: 0.5,       // qué fracción del rastro se mezcla con sus vecinos en cada paso
   tope: 8,         // valor máximo del rastro en una celda
+  fondo: 0.55,     // intensidad máxima con que se ve la red del physarum
   campoP: 0.10,    // qué tanto el campo reorienta al physarum (con fuerza 1)
   nB: 420,         // boids
   fov: -0.6,       // cos del medio ángulo de visión de un boid (~127°: no ve atrás)
@@ -167,7 +168,7 @@ function buildLut() {
   const bg = P.invert ? [0, 0, 0] : [138, 206, 0];
   const ink = P.invert ? [138, 206, 0] : [0, 0, 0];
   for (let i = 0; i < 256; i++) {
-    const k = Math.pow(i / 255, 1.25);
+    const k = Math.pow(i / 255, 1.25) * K.fondo; // el physarum es el suelo: nunca llega a tinta plena
     const r = bg[0] + (ink[0] - bg[0]) * k, g = bg[1] + (ink[1] - bg[1]) * k, b = bg[2] + (ink[2] - bg[2]) * k;
     lut[i] = (255 << 24) | (b << 16) | (g << 8) | r;
   }
@@ -193,6 +194,7 @@ function resize() {
   }
   if (!foco.x) { foco.x = foco.tx = W / 2; foco.y = foco.ty = H / 2; }
   buildMask();
+  resetPintura();
 }
 
 function disperso() {
@@ -420,18 +422,58 @@ function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(off, 0, 0, GW * S, GH * S);
-  // boids: triángulos en el color contrario al fondo
-  ctx.fillStyle = P.invert ? '#fff' : '#000';
+  pintar();
+  ctx.drawImage(pc, 0, 0, W, H);
+  // cabeza de cada boid: un punto, para que se vea quién está pintando
+  ctx.fillStyle = tinta();
   ctx.beginPath();
-  const sz = 5 + P.energia * 2;
-  for (let i = 0; i < K.nB; i++) {
-    const a = Math.atan2(bvy[i], bvx[i]), c = Math.cos(a), s = Math.sin(a), x = bx[i], y = by[i];
-    ctx.moveTo(x + c * sz * 1.6, y + s * sz * 1.6);
-    ctx.lineTo(x - c * sz + s * sz * 0.6, y - s * sz - c * sz * 0.6);
-    ctx.lineTo(x - c * sz - s * sz * 0.6, y - s * sz + c * sz * 0.6);
-  }
+  const r = 1.4 + P.energia;
+  for (let i = 0; i < K.nB; i++) { ctx.moveTo(bx[i] + r, by[i]); ctx.arc(bx[i], by[i], r, 0, TAU); }
   ctx.fill();
   if (verPercep) drawPercepcion();
+}
+
+// ---------- pintura: el recorrido de la bandada se acumula (idea tomada del trabajo de Sofía) ----------
+// La bandada no se dibuja como figuras: cada boid deja un trazo de donde estaba a donde está,
+// y los trazos se van borrando según la memoria (↑/↓), la misma que gobierna el rastro del physarum.
+const pc = document.createElement('canvas'), pctx = pc.getContext('2d');
+const pbx = new Float32Array(K.nB), pby = new Float32Array(K.nB);
+let nPint = 0;
+const tinta = () => P.invert ? '#e4ff9c' : '#000';
+function resetPintura() {
+  pc.width = W * DPR; pc.height = H * DPR;
+  pbx.set(bx); pby.set(by);
+}
+function recolorPintura() { // al cambiar de paleta, lo ya pintado cambia de color pero no se pierde
+  pctx.setTransform(1, 0, 0, 1, 0, 0);
+  pctx.globalCompositeOperation = 'source-in'; pctx.fillStyle = tinta(); pctx.fillRect(0, 0, pc.width, pc.height);
+  pctx.globalCompositeOperation = 'source-over';
+}
+function pintar() {
+  pctx.setTransform(1, 0, 0, 1, 0, 0);
+  // olvido: cada cuadro se borra una fracción; cada 16 cuadros un poco más para que no quede neblina
+  // (con alfa de 8 bits, un borrado muy suave deja un residuo que nunca desaparece)
+  const f = (1 - P.persist) * 0.3;
+  pctx.globalCompositeOperation = 'destination-out';
+  pctx.fillStyle = `rgba(0,0,0,${f + (++nPint % 16 === 0 ? 0.12 : 0)})`;
+  pctx.fillRect(0, 0, pc.width, pc.height);
+  // repeler también borra la pintura alrededor del foco
+  if (foco.modo === -1) {
+    pctx.fillStyle = 'rgba(0,0,0,0.35)';
+    pctx.beginPath(); pctx.arc(foco.x * DPR, foco.y * DPR, 40 * DPR, 0, TAU); pctx.fill();
+  }
+  pctx.globalCompositeOperation = 'source-over';
+  pctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  pctx.strokeStyle = tinta(); pctx.globalAlpha = 0.55;
+  pctx.lineWidth = 1.1 + P.energia * 1.6; pctx.lineCap = 'round';
+  pctx.beginPath();
+  for (let i = 0; i < K.nB; i++) {
+    const dx = bx[i] - pbx[i], dy = by[i] - pby[i];
+    if (dx * dx + dy * dy < 40000) { pctx.moveTo(pbx[i], pby[i]); pctx.lineTo(bx[i], by[i]); } // no unir si cruzó un borde
+    pbx[i] = bx[i]; pby[i] = by[i];
+  }
+  pctx.stroke();
+  pctx.globalAlpha = 1;
 }
 
 // G: hace visible lo que percibe cada tipo de agente
@@ -516,7 +558,7 @@ function updatePanel(now) {
      <div class="row"><span>fuerza del campo</span><b>${P.fuerza.toFixed(2)}</b></div>${bar(P.fuerza, 0, 1)}
      <div class="row"><span>percepción bandada</span><b>${P.percep.toFixed(0)} px</b></div>${bar(P.percep, 15, 220)}
      <div class="row"><span>sensores physarum</span><b>${P.sd.toFixed(1)} celdas</b></div>${bar(P.sd, 2, 40)}
-     <div class="row"><span>persistencia rastro</span><b>${P.persist.toFixed(3)}</b></div>${bar(P.persist, 0.75, 0.985)}
+     <div class="row"><span>memoria (rastro + pintura)</span><b>${P.persist.toFixed(3)}</b></div>${bar(P.persist, 0.75, 0.985)}
      <div class="row"><span>energía</span><b>${P.energia.toFixed(2)}</b></div>${bar(P.energia, 0, 1)}
      <div class="row"><span>agentes</span><b>${K.nB} boids · ${NP.toLocaleString('es')} physarum</b></div>
      <div class="row"><span>fps</span><b>${fps.toFixed(0)}</b></div>
@@ -565,7 +607,7 @@ addEventListener('keydown', e => {
   if (e.repeat) return;
   if (!started && k !== 'o') start();
   if ('0123'.includes(k) && k.length === 1) { P.campo = +k; toast(CAMPOS[P.campo]); }
-  else if (k === 'i') { P.invert = !P.invert; buildLut(); }
+  else if (k === 'i') { P.invert = !P.invert; buildLut(); recolorPintura(); }
   else if (k === 'r') anillo();
   else if (k === 'g') verPercep = !verPercep;
   else if (k === 'd') { panel.classList.toggle('on'); tl.classList.toggle('on'); lastPanel = 0; }
