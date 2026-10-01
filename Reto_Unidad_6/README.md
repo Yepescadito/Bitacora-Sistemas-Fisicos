@@ -119,15 +119,16 @@ El score está en `DEMO/score.js` y se ve en el panel (D) junto con una línea d
 
 | Pasaje | Desde | Intención | Gesto |
 |---|---|---|---|
-| entrada | 0:00 | llega alguien que ya sabe que todos la están mirando | paleta oscura · sin campo · la bandada sigue al foco, sin prisa · el physarum arma su red solo |
-| verso 1 | 0:08 | seguridad: ella es la referencia que los demás copian | clic sostenido · percepción alta (X): un solo cuerpo · el physarum dibuja su camino |
-| coro 1 | 0:38 | el giro de 360°: todo gira a su alrededor | campo 2 (órbita) fuerte · espacio en los golpes · B escribe "360" y se lo comen |
-| verso 2 | 0:56 | está en todas partes: la escena es una red de referencias | I → verde brat · campo 1 · sensores largos (V) · percepción baja (Z): muchas bandadas |
-| coro 2 | 1:26 | el mismo giro, más grande y más ruidoso | campo 2 al máximo · espacio sostenido · arrastrar el vórtice con el foco |
-| quiebre | 1:44 | la pista se vacía: queda la tensión | sin campo · clic derecho espanta y borra · persistencia baja (↓) |
-| cierre | 1:58 | sale del cuadro dejando la marca | campo 3 (estallido) · B una última vez · persistencia alta (↑) y soltar todo |
+| entrada | 0:00 | silencio y un intro sin bajo (0:05): llega alguien que ya sabe que todos la están mirando | paleta oscura · sin campo · la bandada sigue al foco, sin prisa · el physarum arma su red solo |
+| verso 1 | 0:13 | entra el beat: ella es la referencia que los demás copian | espacio en el golpe · clic sostenido · percepción alta (X): un solo cuerpo · el physarum dibuja su camino |
+| coro 1 | 0:45 | el giro de 360°: todo gira a su alrededor | campo 2 (órbita) fuerte · espacio en los golpes · B escribe "360" y se lo comen |
+| verso 2 | 1:01 | después del corte: está en todas partes, la escena es una red de referencias | en el corte, I → verde brat · campo 1 · sensores largos (V) · percepción baja (Z): muchas bandadas |
+| coro 2 | 1:21 | el mismo giro, más grande y más ruidoso | campo 2 al máximo · espacio sostenido · arrastrar el vórtice con el foco |
+| quiebre | 1:40 | se va el bajo: la pista se vacía, queda la tensión | sin campo · clic derecho espanta y borra · persistencia baja (↓) |
+| último coro | 1:49 | vuelve todo de golpe: el momento más alto | campo 3 (estallido) + espacio en el golpe · luego campo 2 · B otra vez · persistencia alta (↑) |
+| cierre | 2:11 | la música se apaga (termina en 2:14): sale del cuadro dejando la marca | soltar todo: el "360" y la red se quedan y se disuelven solos |
 
-**Pendiente:** los tiempos son aproximados. Al ensayar con el mp3 hay que presionar M en cada cambio de pasaje y corregir los `desde` en `score.js`.
+**Cómo saqué los tiempos:** medí la energía del mp3 cada 0.5 s, separando la total de la de los graves, para escribir el score. El instrumento no usa esto en vivo. El mapa muestra 5 s de silencio, un intro sin bajo hasta 0:13 y un pulso cada ~2 s (≈120 BPM, frases de 16 s). Los cambios se ven en bajones de energía en 0:45, 0:59–1:01 y 1:20, el bajo desaparece entre 1:40 y 1:49 y la música se apaga en 2:14. Los límites de la estructura son confiables. Los nombres "verso" y "coro" hay que confirmarlos escuchando; si algo se siente corrido, se corrige con M.
 
 # Registro de pruebas
 

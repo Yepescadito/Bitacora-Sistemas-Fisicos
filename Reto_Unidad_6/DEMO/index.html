@@ -582,9 +582,17 @@ addEventListener('blur', () => { held.clear(); foco.modo = 0; });
 addEventListener('resize', resize);
 
 // si existe audio/360.mp3 junto a esta página (solo en tu computador: la carpeta está en .gitignore), se carga solo
-au.addEventListener('error', () => { if (!audioName) au.removeAttribute('src'); }, { once: true });
-au.addEventListener('loadedmetadata', () => { if (!audioName) { audioName = '360.mp3'; buildTimeline(); toast('audio: 360.mp3 · p para reproducir'); } }, { once: true });
-au.src = 'audio/360.mp3';
+// Se lee completo a memoria (blob) para poder saltar con ←/→ aunque el servidor no acepte rangos;
+// si fetch no está permitido (abrir con file://), se usa la ruta directa, que ahí sí permite saltar.
+function autoAudio(src) {
+  if (audioName) return;
+  au.addEventListener('error', () => { if (!audioName) au.removeAttribute('src'); }, { once: true });
+  au.addEventListener('loadedmetadata', () => { if (!audioName) { audioName = '360.mp3'; buildTimeline(); toast('audio: 360.mp3 · p para reproducir'); } }, { once: true });
+  au.src = src;
+}
+fetch('audio/360.mp3').then(r => r.ok ? r.blob() : null)
+  .then(b => { if (b) autoAudio(URL.createObjectURL(b)); })
+  .catch(() => autoAudio('audio/360.mp3'));
 
 // ---------- bucle ----------
 buildLut(); resize(); buildTimeline();
