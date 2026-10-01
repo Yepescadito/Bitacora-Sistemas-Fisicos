@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>360 · instrumento visual</title>
+<style>
+  :root { --lime:#8ace00; --ink:#000; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#000; }
+  body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; cursor: crosshair; user-select:none; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; }
+  .brat { text-transform: lowercase; letter-spacing: -0.03em; }
+
+  #splash { position:fixed; inset:0; z-index:10; background:var(--lime); color:var(--ink);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; }
+  #splash h1 { margin:0; font-weight:400; font-size:min(42vw,62vh); line-height:.9; filter:blur(4px); }
+  #splash p { margin:6px 0; font-size:clamp(14px,1.6vw,20px); }
+  #splash small { opacity:.65; }
+
+  .hud { position:fixed; z-index:5; color:#fff; background:rgba(0,0,0,.78); font-size:13px;
+    line-height:1.45; padding:12px 14px; border-radius:6px; display:none; }
+  .hud.on { display:block; }
+  .hud b { color:var(--lime); font-weight:400; }
+  #panel { left:12px; top:12px; width:330px; }
+  #panel .row { display:flex; justify-content:space-between; gap:10px; }
+  #panel .bar { height:4px; background:#333; margin:2px 0 6px; }
+  #panel .bar i { display:block; height:100%; background:var(--lime); }
+  #panel .score { margin-top:8px; padding-top:8px; border-top:1px solid #333; }
+  #help { right:12px; top:12px; width:360px; }
+  #help td { padding:1px 10px 1px 0; vertical-align:top; }
+  #help td:first-child { color:var(--lime); white-space:nowrap; }
+  #help h3 { margin:8px 0 2px; font-weight:400; font-size:12px; opacity:.6; text-transform:uppercase; letter-spacing:.08em; }
+
+  #timeline { position:fixed; left:0; right:0; bottom:0; height:22px; z-index:5; display:none; background:rgba(0,0,0,.78); }
+  #timeline.on { display:block; }
+  #timeline .seg { position:absolute; top:0; bottom:0; border-left:1px solid #555; color:#aaa; font-size:11px; padding:4px 5px; box-sizing:border-box; overflow:hidden; white-space:nowrap; }
+  #timeline .seg.now { color:#000; background:var(--lime); }
+  #timeline .head { position:absolute; top:0; bottom:0; width:2px; background:#fff; }
+
+  #toast { position:fixed; left:50%; bottom:40px; transform:translateX(-50%); z-index:6; color:#fff;
+    background:rgba(0,0,0,.7); padding:6px 14px; border-radius:20px; font-size:14px; opacity:0; transition:opacity .4s; pointer-events:none; }
+  #toast.on { opacity:1; }
+  #drop { position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
+    background:rgba(138,206,0,.85); font-size:5vw; color:#000; }
+  #drop.on { display:flex; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="splash" class="brat">
+  <h1>360</h1>
+  <p>instrumento visual · charli xcx</p>
+  <p><small>arrastra el mp3 aquí o presiona o · clic para empezar · h ayuda</small></p>
+</div>
+
+<div id="panel" class="hud brat"></div>
+<div id="help" class="hud">
+  <h3>Foco (mouse)</h3>
+  <table>
+    <tr><td>mover</td><td>mueve el foco (centro del vórtice y del estallido)</td></tr>
+    <tr><td>clic izq. sostenido</td><td>atraer: la bandada lo persigue y el foco deja rastro</td></tr>
+    <tr><td>clic der. / shift+clic</td><td>repeler: la bandada huye y el rastro se borra</td></tr>
+  </table>
+  <h3>Entorno</h3>
+  <table>
+    <tr><td>1 · 2 · 3 · 0</td><td>campo: deriva · órbita 360 · estallido · sin campo</td></tr>
+    <tr><td>rueda</td><td>fuerza del campo</td></tr>
+    <tr><td>↑ / ↓ (sostener)</td><td>persistencia del rastro</td></tr>
+    <tr><td>B (sostener)</td><td>escribir "360" en el rastro</td></tr>
+    <tr><td>I</td><td>paleta: oscura ↔ verde brat</td></tr>
+  </table>
+  <h3>Percepción</h3>
+  <table>
+    <tr><td>Z / X (sostener)</td><td>radio de percepción de la bandada −/+</td></tr>
+    <tr><td>C / V (sostener)</td><td>alcance de los sensores del physarum −/+</td></tr>
+  </table>
+  <h3>Energía</h3>
+  <table>
+    <tr><td>espacio (sostener)</td><td>velocidad y fuerza máximas de todos los agentes</td></tr>
+  </table>
+  <h3>Música y ensayo</h3>
+  <table>
+    <tr><td>O · arrastrar</td><td>cargar audio</td></tr>
+    <tr><td>P</td><td>reproducir / pausar</td></tr>
+    <tr><td>← / →</td><td>retroceder / adelantar 5 s</td></tr>
+    <tr><td>M</td><td>marcar el tiempo actual (para ajustar el score)</td></tr>
+    <tr><td>R</td><td>reiniciar el physarum en un anillo</td></tr>
+    <tr><td>G</td><td>ver la percepción de los agentes</td></tr>
+    <tr><td>D</td><td>panel de parámetros + score</td></tr>
+    <tr><td>F · H</td><td>pantalla completa · esta ayuda</td></tr>
+  </table>
+</div>
+<div id="timeline"></div>
+<div id="toast" class="brat"></div>
+<div id="drop" class="brat">suelta el audio</div>
+<input id="file" type="file" accept="audio/*" hidden>
+
+<script src="score.js"></script>
+<script>
+(() => {
+'use strict';
+const TAU = Math.PI * 2;
+const STEP = 1 / 60;          // paso fijo: el mismo ritmo a 30, 60 o 120 Hz
+const S = 3;                  // px de pantalla por celda del mapa de rastro
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const off = document.createElement('canvas');
+const octx = off.getContext('2d');
+
+// ---------- parámetros que la persona interpreta ----------
+const P = {
+  campo: 0,        // 0 sin campo · 1 deriva · 2 órbita 360 · 3 estallido
+  fuerza: 0.5,     // 0..1 cuánto pesa el campo
+  percep: 70,      // radio de percepción de cada boid (px)
+  sd: 9,           // distancia de los sensores del physarum (celdas)
+  persist: 0.93,   // cuánto del rastro sobrevive en cada paso
+  energia: 0,      // 0..1, sube mientras se sostiene espacio
+  invert: true,    // true = fondo negro / rastro lima
+};
+// constantes del modelo (no se tocan en vivo)
+const K = {
+  sa: 0.6,         // ángulo entre sensores del physarum (rad)
+  ra: 0.45,        // giro del physarum por paso (rad)
+  depP: 1.0,       // depósito de cada agente physarum
+  depB: 3.0,       // depósito de cada boid
+  difu: 0.5,       // qué fracción del rastro se mezcla con sus vecinos en cada paso
+  tope: 8,         // valor máximo del rastro en una celda
+  campoP: 0.10,    // qué tanto el campo reorienta al physarum (con fuerza 1)
+  nB: 420,         // boids
+  fov: -0.6,       // cos del medio ángulo de visión de un boid (~127°: no ve atrás)
+  atencion: 24,    // máximo de vecinos que un boid tiene en cuenta
+  focoR: 0.42,     // alcance con el que un boid percibe el foco (× lado menor)
+};
+
+// ---------- estado ----------
+let W = 0, H = 0, DPR = 1, GW = 0, GH = 0;
+let trail, tmp, img, buf32, lut = new Uint32Array(256);
+let NP = 0, px, py, pa;
+const bx = new Float32Array(K.nB), by = new Float32Array(K.nB);
+const bvx = new Float32Array(K.nB), bvy = new Float32Array(K.nB), bwan = new Float32Array(K.nB);
+let FC = 24, FW = 0, FH = 0, field;   // campo de direcciones en una rejilla gruesa
+let mask = [];                        // celdas del texto "360"
+let t = 0;
+const foco = { x: 0, y: 0, tx: 0, ty: 0, modo: 0 }; // modo: 0 nada · 1 atraer · -1 repeler
+const held = new Set();
+let verPercep = false, started = false;
+
+// ---------- ruido de valor 3D (para el campo de deriva) ----------
+const PERM = new Uint8Array(512);
+{ const p = [...Array(256).keys()]; for (let i = 255; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [p[i], p[j]] = [p[j], p[i]]; }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255]; }
+const fade = v => v * v * (3 - 2 * v);
+const h3 = (x, y, z) => PERM[(PERM[(PERM[x & 255] + y) & 255] + z) & 255] / 255;
+function noise3(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  const xf = fade(x - xi), yf = fade(y - yi), zf = fade(z - zi);
+  const L = (a, b, f) => a + (b - a) * f;
+  return L(
+    L(L(h3(xi, yi, zi), h3(xi + 1, yi, zi), xf), L(h3(xi, yi + 1, zi), h3(xi + 1, yi + 1, zi), xf), yf),
+    L(L(h3(xi, yi, zi + 1), h3(xi + 1, yi, zi + 1), xf), L(h3(xi, yi + 1, zi + 1), h3(xi + 1, yi + 1, zi + 1), xf), yf), zf);
+}
+
+// ---------- paleta ----------
+function buildLut() {
+  const bg = P.invert ? [0, 0, 0] : [138, 206, 0];
+  const ink = P.invert ? [138, 206, 0] : [0, 0, 0];
+  for (let i = 0; i < 256; i++) {
+    const k = Math.pow(i / 255, 1.25);
+    const r = bg[0] + (ink[0] - bg[0]) * k, g = bg[1] + (ink[1] - bg[1]) * k, b = bg[2] + (ink[2] - bg[2]) * k;
+    lut[i] = (255 << 24) | (b << 16) | (g << 8) | r;
+  }
+}
+
+// ---------- tamaño ----------
+function resize() {
+  const oW = W || innerWidth, oH = H || innerHeight;
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2);
+  cv.width = W * DPR; cv.height = H * DPR;
+  GW = Math.ceil(W / S); GH = Math.ceil(H / S);
+  trail = new Float32Array(GW * GH); tmp = new Float32Array(GW * GH);
+  off.width = GW; off.height = GH;
+  img = octx.createImageData(GW, GH); buf32 = new Uint32Array(img.data.buffer);
+  FW = Math.ceil(W / FC) + 1; FH = Math.ceil(H / FC) + 1; field = new Float32Array(FW * FH);
+  NP = Math.min(90000, Math.floor(GW * GH * 0.3));
+  px = new Float32Array(NP); py = new Float32Array(NP); pa = new Float32Array(NP);
+  disperso();
+  for (let i = 0; i < K.nB; i++) {
+    if (bx[i] === 0 && by[i] === 0) { bx[i] = Math.random() * W; by[i] = Math.random() * H;
+      const a = Math.random() * TAU; bvx[i] = Math.cos(a) * 2; bvy[i] = Math.sin(a) * 2; bwan[i] = a; }
+    else { bx[i] *= W / oW; by[i] *= H / oH; }
+  }
+  if (!foco.x) { foco.x = foco.tx = W / 2; foco.y = foco.ty = H / 2; }
+  buildMask();
+}
+
+function disperso() {
+  for (let i = 0; i < NP; i++) { px[i] = Math.random() * GW; py[i] = Math.random() * GH; pa[i] = Math.random() * TAU; }
+}
+// R: el physarum se reinicia en un anillo mirando hacia adentro (360)
+function anillo() {
+  const cx = GW / 2, cy = GH / 2, R = Math.min(GW, GH) * 0.36;
+  for (let i = 0; i < NP; i++) {
+    const a = Math.random() * TAU, r = R * (0.85 + Math.random() * 0.15);
+    px[i] = cx + Math.cos(a) * r; py[i] = cy + Math.sin(a) * r;
+    pa[i] = a + Math.PI + (Math.random() - 0.5) * 0.6;
+  }
+}
+
+// celdas que forman "360" (se depositan en el rastro mientras se sostiene B)
+function buildMask() {
+  const c = document.createElement('canvas'); c.width = GW; c.height = GH;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  let fs = GH * 0.62; x.font = `${fs}px Arial, Helvetica, sans-serif`;
+  const w = x.measureText('360').width; if (w > GW * 0.8) { fs *= GW * 0.8 / w; x.font = `${fs}px Arial, Helvetica, sans-serif`; }
+  x.fillText('360', GW / 2, GH / 2);
+  const d = x.getImageData(0, 0, GW, GH).data;
+  mask = [];
+  for (let i = 0; i < GW * GH; i++) if (d[i * 4 + 3] > 128) mask.push(i);
+}
+
+// ---------- campo de direcciones ----------
+// El campo es solo un mapa de ángulos; cada tipo de agente decide cómo lo consulta.
+function updateField() {
+  if (!P.campo) return;
+  const z = t * 0.06, R0 = Math.min(W, H) * 0.3;
+  for (let j = 0; j < FH; j++) for (let i = 0; i < FW; i++) {
+    const x = i * FC, y = j * FC, k = j * FW + i;
+    if (P.campo === 1) field[k] = noise3(x * 0.0018, y * 0.0018, z) * TAU * 2;
+    else {
+      const dx = x - foco.x, dy = y - foco.y, a = Math.atan2(dy, dx);
+      if (P.campo === 3) field[k] = a; // estallido: hacia afuera desde el foco
+      else {
+        // órbita 360: tangente al círculo de radio R0, inclinada hacia él desde adentro y desde afuera
+        const e = Math.max(-1, Math.min(1, (Math.hypot(dx, dy) - R0) / R0));
+        field[k] = a + Math.PI / 2 + e * 0.9;
+      }
+    }
+  }
+}
+const fieldAt = (x, y) => {
+  let i = (x / FC) | 0, j = (y / FC) | 0;
+  if (i < 0) i = 0; else if (i >= FW) i = FW - 1;
+  if (j < 0) j = 0; else if (j >= FH) j = FH - 1;
+  return field[j * FW + i];
+};
+
+// ---------- physarum (Jones 2010) ----------
+function sense(x, y) {
+  if (x < 0) x += GW; else if (x >= GW) x -= GW;
+  if (y < 0) y += GH; else if (y >= GH) y -= GH;
+  return trail[(y | 0) * GW + (x | 0)];
+}
+// tablas de seno/coseno: con decenas de miles de agentes, Math.cos/sin era el 60% del costo
+const TN = 4096, TM = TN - 1, TI = TN / TAU;
+const COS = new Float32Array(TN), SIN = new Float32Array(TN);
+for (let i = 0; i < TN; i++) { COS[i] = Math.cos(i / TI); SIN[i] = Math.sin(i / TI); }
+function stepPhysarum() {
+  const sd = P.sd, ra = K.ra, ss = 1 + P.energia * 0.9, so = Math.round(K.sa * TI);
+  const fw = P.campo ? P.fuerza * K.campoP : 0;
+  for (let i = 0; i < NP; i++) {
+    let x = px[i], y = py[i], a = pa[i];
+    // percibe: tres sensores adelante (izq, centro, der)
+    const k = (a * TI) | 0, kl = (k - so) & TM, kr = (k + so) & TM, kc = k & TM;
+    const fc = sense(x + COS[kc] * sd, y + SIN[kc] * sd);
+    const fl = sense(x + COS[kl] * sd, y + SIN[kl] * sd);
+    const fr = sense(x + COS[kr] * sd, y + SIN[kr] * sd);
+    // decide: girar hacia donde hay más rastro
+    if (fc > fl && fc > fr) { /* seguir derecho */ }
+    else if (fc < fl && fc < fr) a += Math.random() < 0.5 ? -ra : ra;
+    else if (fl > fr) a -= ra;
+    else if (fr > fl) a += ra;
+    // el campo inclina el rumbo (no lo reemplaza)
+    if (fw) { let d = fieldAt(x * S, y * S) - a; d -= TAU * Math.round(d / TAU); a += d * fw; }
+    // actúa: avanza y deposita
+    if (a < 0) a += TAU; else if (a >= TAU) a -= TAU;
+    const km = (a * TI) & TM;
+    x += COS[km] * ss; y += SIN[km] * ss;
+    if (x < 0) x += GW; else if (x >= GW) x -= GW;
+    if (y < 0) y += GH; else if (y >= GH) y -= GH;
+    px[i] = x; py[i] = y; pa[i] = a;
+    trail[(y | 0) * GW + (x | 0)] += K.depP;
+  }
+}
+// difusión (promedio 3×3) y decaimiento
+function diffuse() {
+  const p = P.persist, w = K.difu / 9, q = 1 - K.difu, cap = K.tope;
+  for (let y = 0; y < GH; y++) {
+    const r = y * GW;
+    tmp[r] = trail[r + GW - 1] + trail[r] + trail[r + 1];
+    for (let x = 1; x < GW - 1; x++) tmp[r + x] = trail[r + x - 1] + trail[r + x] + trail[r + x + 1];
+    tmp[r + GW - 1] = trail[r + GW - 2] + trail[r + GW - 1] + trail[r];
+  }
+  for (let y = 0; y < GH; y++) {
+    const r = y * GW, u = (y ? y - 1 : GH - 1) * GW, n = (y < GH - 1 ? y + 1 : 0) * GW;
+    for (let x = 0; x < GW; x++) {
+      const v = (trail[r + x] * q + (tmp[u + x] + tmp[r + x] + tmp[n + x]) * w) * p;
+      trail[r + x] = v > cap ? cap : v; // con tope, un tubo grueso deja de "ganarle" a todos y la red sigue fina
+    }
+  }
+}
+
+// ---------- boids: steering de Reynolds ----------
+let gHead = new Int32Array(1), gNext = new Int32Array(K.nB), gCols = 1, gRows = 1, gCell = 1;
+function buildGrid() {
+  gCell = Math.max(20, P.percep); gCols = Math.ceil(W / gCell); gRows = Math.ceil(H / gCell);
+  if (gHead.length < gCols * gRows) gHead = new Int32Array(gCols * gRows);
+  gHead.fill(-1, 0, gCols * gRows);
+  for (let i = 0; i < K.nB; i++) {
+    const c = Math.min(gRows - 1, (by[i] / gCell) | 0) * gCols + Math.min(gCols - 1, (bx[i] / gCell) | 0);
+    gNext[i] = gHead[c]; gHead[c] = i;
+  }
+}
+// steer = deseada − velocidad, limitada a maxF (Reynolds 1999)
+function steer(dx, dy, vx, vy, maxS, maxF, out) {
+  const m = Math.hypot(dx, dy) || 1;
+  let sx = dx / m * maxS - vx, sy = dy / m * maxS - vy;
+  const f = Math.hypot(sx, sy); if (f > maxF) { sx *= maxF / f; sy *= maxF / f; }
+  out[0] = sx; out[1] = sy;
+}
+const sv = [0, 0];
+function stepBoids() {
+  buildGrid();
+  const R = P.percep, R2 = R * R, sepR2 = (R * 0.42) ** 2;
+  const maxS = 2.4 * (1 + 1.4 * P.energia), maxF = 0.07 * (1 + 1.6 * P.energia);
+  const focoR = Math.min(W, H) * K.focoR, fw = P.campo ? P.fuerza * 1.6 : 0;
+  for (let i = 0; i < K.nB; i++) {
+    const x = bx[i], y = by[i], vx = bvx[i], vy = bvy[i], sp = Math.hypot(vx, vy) || 1;
+    let ax = 0, ay = 0;
+    // percibe: solo vecinos dentro de R y dentro de su cono de visión
+    let n = 0, alx = 0, aly = 0, cox = 0, coy = 0, sex = 0, sey = 0;
+    const ci = (x / gCell) | 0, cj = (y / gCell) | 0;
+    // atención limitada: atiende como máximo a K.atencion vecinos
+    for (let jj = cj - 1; jj <= cj + 1 && n < K.atencion; jj++) { if (jj < 0 || jj >= gRows) continue;
+      for (let ii = ci - 1; ii <= ci + 1 && n < K.atencion; ii++) { if (ii < 0 || ii >= gCols) continue;
+        for (let j = gHead[jj * gCols + ii]; j !== -1 && n < K.atencion; j = gNext[j]) {
+          if (j === i) continue;
+          const dx = bx[j] - x, dy = by[j] - y, d2 = dx * dx + dy * dy;
+          if (d2 > R2 || d2 === 0) continue;
+          const d = Math.sqrt(d2);
+          if ((dx * vx + dy * vy) / (d * sp) < K.fov) continue; // está detrás: no lo ve
+          n++; alx += bvx[j]; aly += bvy[j]; cox += bx[j]; coy += by[j];
+          if (d2 < sepR2) { sex -= dx / d2; sey -= dy / d2; }
+        }
+      }
+    }
+    if (n) {
+      if (sex || sey) { steer(sex, sey, vx, vy, maxS, maxF, sv); ax += sv[0] * 2.4; ay += sv[1] * 2.4; } // separación
+      steer(alx, aly, vx, vy, maxS, maxF, sv); ax += sv[0] * 1.0; ay += sv[1] * 1.0;                      // alineación
+      steer(cox / n - x, coy / n - y, vx, vy, maxS, maxF, sv); ax += sv[0] * 0.8; ay += sv[1] * 0.8;      // cohesión
+    }
+    // flow field: la velocidad deseada es la dirección del campo donde está
+    if (fw) { const a = fieldAt(x, y); steer(Math.cos(a), Math.sin(a), vx, vy, maxS, maxF, sv); ax += sv[0] * fw; ay += sv[1] * fw; }
+    // foco: solo lo percibe si está a su alcance
+    if (foco.modo) {
+      const dx = foco.x - x, dy = foco.y - y, d = Math.hypot(dx, dy);
+      if (foco.modo === 1 && d < focoR && d > 90) { // arrive: frena a media velocidad al acercarse; a menos de 90 px ya llegó
+        const s = maxS * (0.5 + 0.5 * Math.min(1, (d - 90) / 110));
+        let sx = dx / d * s - vx, sy = dy / d * s - vy;
+        const f = Math.hypot(sx, sy); if (f > maxF) { sx *= maxF / f; sy *= maxF / f; }
+        ax += sx * 1.6; ay += sy * 1.6;
+      } else if (foco.modo === -1 && d < focoR * 0.7) { // flee
+        steer(-dx, -dy, vx, vy, maxS, maxF, sv); ax += sv[0] * 3; ay += sv[1] * 3;
+      }
+    }
+    // wander: un punto que se pasea en un círculo adelante
+    bwan[i] += (Math.random() - 0.5) * 0.5;
+    const hx = vx / sp, hy = vy / sp;
+    steer(hx * 40 + Math.cos(bwan[i]) * 18, hy * 40 + Math.sin(bwan[i]) * 18, vx, vy, maxS, maxF, sv);
+    ax += sv[0] * 0.3; ay += sv[1] * 0.3;
+    // actúa
+    let nvx = vx + ax, nvy = vy + ay;
+    const m = Math.hypot(nvx, nvy); if (m > maxS) { nvx *= maxS / m; nvy *= maxS / m; }
+    let nx = x + nvx, ny = y + nvy;
+    if (nx < 0) nx += W; else if (nx >= W) nx -= W;
+    if (ny < 0) ny += H; else if (ny >= H) ny -= H;
+    bx[i] = nx; by[i] = ny; bvx[i] = nvx; bvy[i] = nvy;
+    // la bandada deja rastro: así el physarum la puede percibir
+    trail[Math.min(GH - 1, (ny / S) | 0) * GW + Math.min(GW - 1, (nx / S) | 0)] += K.depB;
+  }
+}
+
+// ---------- intervenciones sobre el entorno ----------
+function stepFoco() {
+  foco.x += (foco.tx - foco.x) * 0.25; foco.y += (foco.ty - foco.y) * 0.25;
+  if (!foco.modo) return;
+  const cx = (foco.x / S) | 0, cy = (foco.y / S) | 0, r = foco.modo === 1 ? 5 : 12;
+  for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+    if (i * i + j * j > r * r) continue;
+    const x = cx + i, y = cy + j; if (x < 0 || y < 0 || x >= GW || y >= GH) continue;
+    const k = y * GW + x;
+    if (foco.modo === 1) trail[k] += 4; else trail[k] *= 0.55;
+  }
+}
+function stepTeclas() {
+  if (held.has('z')) P.percep = Math.max(15, P.percep * 0.985);
+  if (held.has('x')) P.percep = Math.min(220, P.percep * 1.015);
+  if (held.has('c')) P.sd = Math.max(2, P.sd - 0.15);
+  if (held.has('v')) P.sd = Math.min(40, P.sd + 0.15);
+  if (held.has('arrowup')) P.persist = Math.min(0.985, P.persist + 0.0015);
+  if (held.has('arrowdown')) P.persist = Math.max(0.75, P.persist - 0.0015);
+  P.energia += ((held.has(' ') ? 1 : 0) - P.energia) * 0.08;
+  if (held.has('b')) for (let k = 0; k < mask.length; k++) trail[mask[k]] += 2.5;
+}
+
+function step() {
+  t += STEP;
+  stepTeclas(); stepFoco(); updateField();
+  stepBoids(); stepPhysarum(); diffuse();
+}
+
+// ---------- dibujo ----------
+function draw() {
+  // tono v/(v+c): el tope (8) queda en ~73% de tinta; los rastros débiles se ven tenues
+  const c = 3;
+  for (let i = 0, n = GW * GH; i < n; i++) { const v = trail[i]; buf32[i] = lut[(255 * v / (v + c)) | 0]; }
+  octx.putImageData(img, 0, 0);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(off, 0, 0, GW * S, GH * S);
+  // boids: triángulos en el color contrario al fondo
+  ctx.fillStyle = P.invert ? '#fff' : '#000';
+  ctx.beginPath();
+  const sz = 5 + P.energia * 2;
+  for (let i = 0; i < K.nB; i++) {
+    const a = Math.atan2(bvy[i], bvx[i]), c = Math.cos(a), s = Math.sin(a), x = bx[i], y = by[i];
+    ctx.moveTo(x + c * sz * 1.6, y + s * sz * 1.6);
+    ctx.lineTo(x - c * sz + s * sz * 0.6, y - s * sz - c * sz * 0.6);
+    ctx.lineTo(x - c * sz - s * sz * 0.6, y - s * sz + c * sz * 0.6);
+  }
+  ctx.fill();
+  if (verPercep) drawPercepcion();
+}
+
+// G: hace visible lo que percibe cada tipo de agente
+function drawPercepcion() {
+  const col = P.invert ? 'rgba(255,255,255,' : 'rgba(0,0,0,';
+  ctx.lineWidth = 1;
+  // campo: una flecha por celda gruesa
+  if (P.campo) {
+    ctx.strokeStyle = col + '.35)'; ctx.beginPath();
+    for (let j = 0; j < FH; j += 2) for (let i = 0; i < FW; i += 2) {
+      const a = field[j * FW + i], x = i * FC, y = j * FC;
+      ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 18, y + Math.sin(a) * 18);
+    }
+    ctx.stroke();
+  }
+  // alcance del foco
+  ctx.strokeStyle = col + '.5)'; ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.arc(foco.x, foco.y, Math.min(W, H) * K.focoR, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+  // un boid: su cono de visión, su radio de separación y los vecinos que sí ve
+  const i = 0, x = bx[i], y = by[i], a = Math.atan2(bvy[i], bvx[i]), half = Math.acos(K.fov), R = P.percep;
+  ctx.fillStyle = col + '.12)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, R, a - half, a + half); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = col + '.8)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, R * 0.42, 0, TAU); ctx.stroke();
+  ctx.beginPath();
+  for (let j = 1, n = 0; j < K.nB && n < K.atencion; j++) {
+    const dx = bx[j] - x, dy = by[j] - y, d = Math.hypot(dx, dy);
+    if (d > R || (dx * bvx[i] + dy * bvy[i]) / (d * Math.hypot(bvx[i], bvy[i])) < K.fov) continue;
+    ctx.moveTo(x, y); ctx.lineTo(bx[j], by[j]); n++;
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#ff2d7a'; ctx.beginPath(); ctx.arc(x, y, 5, 0, TAU); ctx.fill();
+  // algunos agentes physarum: sus tres sensores
+  ctx.strokeStyle = '#ff2d7a'; ctx.fillStyle = '#ff2d7a';
+  for (let k = 0; k < 40; k++) {
+    const p = (k * 2311) % NP, X = px[p] * S, Y = py[p] * S, A = pa[p], d = P.sd * S;
+    ctx.beginPath();
+    for (const o of [-K.sa, 0, K.sa]) { ctx.moveTo(X, Y); ctx.lineTo(X + Math.cos(A + o) * d, Y + Math.sin(A + o) * d); }
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(X, Y, 2.5, 0, TAU); ctx.fill();
+  }
+}
+
+// ---------- audio y score (solo guía: nada cambia automáticamente) ----------
+const au = new Audio(); au.preload = 'auto';
+let audioName = '';
+const marcas = [];
+function loadAudio(f) {
+  if (!f || !/^audio\//.test(f.type) && !/\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(f.name)) return toast('ese archivo no es audio');
+  au.src = URL.createObjectURL(f); audioName = f.name; toast('audio: ' + f.name.toLowerCase() + ' · p para reproducir');
+  au.addEventListener('loadedmetadata', buildTimeline, { once: true });
+}
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const SC = window.SCORE || { cancion: '', pasajes: [] };
+function pasajeActual() {
+  let k = -1; for (let i = 0; i < SC.pasajes.length; i++) if (au.currentTime >= SC.pasajes[i].desde) k = i;
+  return k;
+}
+const tl = document.getElementById('timeline');
+function buildTimeline() {
+  const dur = au.duration || 133; tl.innerHTML = '';
+  SC.pasajes.forEach((p, i) => {
+    const e = document.createElement('div'); e.className = 'seg';
+    const fin = i + 1 < SC.pasajes.length ? SC.pasajes[i + 1].desde : dur;
+    e.style.left = (p.desde / dur * 100) + '%'; e.style.width = ((fin - p.desde) / dur * 100) + '%';
+    e.textContent = p.nombre; tl.appendChild(e);
+  });
+  const h = document.createElement('div'); h.className = 'head'; tl.appendChild(h);
+}
+tl.addEventListener('click', e => { if (au.duration) au.currentTime = e.clientX / innerWidth * au.duration; });
+
+// ---------- panel ----------
+const panel = document.getElementById('panel');
+const CAMPOS = ['sin campo', 'deriva', 'órbita 360', 'estallido'];
+const bar = (v, a, b) => `<div class="bar"><i style="width:${Math.round((v - a) / (b - a) * 100)}%"></i></div>`;
+let fps = 60, lastPanel = 0;
+function updatePanel(now) {
+  if (!panel.classList.contains('on') || now - lastPanel < 150) return;
+  lastPanel = now;
+  const k = pasajeActual(), ps = SC.pasajes[k];
+  panel.innerHTML =
+    `<div class="row"><span>campo</span><b>${CAMPOS[P.campo]}</b></div>
+     <div class="row"><span>fuerza del campo</span><b>${P.fuerza.toFixed(2)}</b></div>${bar(P.fuerza, 0, 1)}
+     <div class="row"><span>percepción bandada</span><b>${P.percep.toFixed(0)} px</b></div>${bar(P.percep, 15, 220)}
+     <div class="row"><span>sensores physarum</span><b>${P.sd.toFixed(1)} celdas</b></div>${bar(P.sd, 2, 40)}
+     <div class="row"><span>persistencia rastro</span><b>${P.persist.toFixed(3)}</b></div>${bar(P.persist, 0.75, 0.985)}
+     <div class="row"><span>energía</span><b>${P.energia.toFixed(2)}</b></div>${bar(P.energia, 0, 1)}
+     <div class="row"><span>agentes</span><b>${K.nB} boids · ${NP.toLocaleString('es')} physarum</b></div>
+     <div class="row"><span>fps</span><b>${fps.toFixed(0)}</b></div>
+     <div class="score">
+       <div class="row"><span>${audioName ? SC.cancion : 'sin audio (o para cargar)'}</span><b>${fmt(au.currentTime || 0)}${au.duration ? ' / ' + fmt(au.duration) : ''}</b></div>
+       ${ps ? `<div><b>${ps.nombre}</b> — ${ps.intencion}</div><div style="opacity:.75">${ps.gesto}</div>` : ''}
+       ${marcas.length ? `<div style="opacity:.6;margin-top:6px">marcas: ${marcas.map(fmt).join(' · ')}</div>` : ''}
+     </div>`;
+  const head = tl.querySelector('.head');
+  if (head && au.duration) {
+    head.style.left = (au.currentTime / au.duration * 100) + '%';
+    tl.querySelectorAll('.seg').forEach((e, i) => e.classList.toggle('now', i === k));
+  }
+}
+
+let toastT = 0;
+function toast(m) { const e = document.getElementById('toast'); e.textContent = m; e.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => e.classList.remove('on'), 1800); }
+
+// ---------- entrada ----------
+const splash = document.getElementById('splash');
+function start() { if (started) return; started = true; splash.style.display = 'none'; }
+splash.addEventListener('click', start);
+
+cv.addEventListener('pointermove', e => { foco.tx = e.clientX; foco.ty = e.clientY; });
+cv.addEventListener('pointerdown', e => {
+  foco.tx = foco.x = e.clientX; foco.ty = foco.y = e.clientY;
+  foco.modo = (e.button === 2 || e.shiftKey) ? -1 : 1;
+  cv.setPointerCapture(e.pointerId);
+});
+const soltar = () => { foco.modo = 0; };
+cv.addEventListener('pointerup', soltar); cv.addEventListener('pointercancel', soltar);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('wheel', e => { P.fuerza = Math.max(0, Math.min(1, P.fuerza - e.deltaY * 0.0006)); }, { passive: true });
+
+const fileIn = document.getElementById('file');
+fileIn.addEventListener('change', () => loadAudio(fileIn.files[0]));
+const drop = document.getElementById('drop');
+addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('on'); });
+addEventListener('dragleave', e => { if (!e.relatedTarget) drop.classList.remove('on'); });
+addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('on'); loadAudio(e.dataTransfer.files[0]); });
+
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
+  held.add(k);
+  if (e.repeat) return;
+  if (!started && k !== 'o') start();
+  if ('0123'.includes(k) && k.length === 1) { P.campo = +k; toast(CAMPOS[P.campo]); }
+  else if (k === 'i') { P.invert = !P.invert; buildLut(); }
+  else if (k === 'r') anillo();
+  else if (k === 'g') verPercep = !verPercep;
+  else if (k === 'd') { panel.classList.toggle('on'); tl.classList.toggle('on'); lastPanel = 0; }
+  else if (k === 'h') document.getElementById('help').classList.toggle('on');
+  else if (k === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  else if (k === 'o') fileIn.click();
+  else if (k === 'p') { if (!au.src) toast('primero carga el audio (o)'); else au.paused ? au.play() : au.pause(); }
+  else if (k === 'arrowleft' && au.src) au.currentTime = Math.max(0, au.currentTime - 5);
+  else if (k === 'arrowright' && au.src) au.currentTime = Math.min(au.duration || 0, au.currentTime + 5);
+  else if (k === 'm' && au.src) { marcas.push(au.currentTime); console.log('marca', au.currentTime.toFixed(2)); toast('marca ' + fmt(au.currentTime)); }
+});
+addEventListener('keyup', e => held.delete(e.key.toLowerCase()));
+addEventListener('blur', () => { held.clear(); foco.modo = 0; });
+addEventListener('resize', resize);
+
+// ---------- bucle ----------
+buildLut(); resize(); buildTimeline();
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
+  acc += dt; let n = 0;
+  while (acc >= STEP && n < 2) { step(); acc -= STEP; n++; }
+  if (acc > STEP) acc = 0;
+  draw(); updatePanel(now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+// acceso desde la consola para verificar parámetros (p. ej. __inst.P, __inst.step())
+window.__inst = { P, K, foco, get NP() { return NP; }, get fps() { return fps; }, trail: () => trail, bx, by, bvx, bvy, step, draw, fases: { stepBoids, stepPhysarum, diffuse, updateField } };
+})();
+</script>
+</body>
+</html>
