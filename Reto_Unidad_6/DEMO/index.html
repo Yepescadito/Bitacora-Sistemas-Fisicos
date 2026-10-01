@@ -82,6 +82,7 @@
   <h3>Energía</h3>
   <table>
     <tr><td>espacio (sostener)</td><td>velocidad y fuerza máximas de todos los agentes</td></tr>
+    <tr><td>J (al ritmo)</td><td>golpe: la bandada estalla desde el foco y la pantalla destella</td></tr>
   </table>
   <h3>Música y ensayo</h3>
   <table>
@@ -131,7 +132,7 @@ const K = {
   depB: 3.0,       // depósito de cada boid
   difu: 0.5,       // qué fracción del rastro se mezcla con sus vecinos en cada paso
   tope: 8,         // valor máximo del rastro en una celda
-  fondo: 0.55,     // intensidad máxima con que se ve la red del physarum
+  fondo: 0.35,     // intensidad máxima con que se ve la red del physarum
   campoP: 0.10,    // qué tanto el campo reorienta al physarum (con fuerza 1)
   nB: 420,         // boids
   fov: -0.6,       // cos del medio ángulo de visión de un boid (~127°: no ve atrás)
@@ -181,7 +182,7 @@ function buildLut() {
 // ---------- tamaño ----------
 function resize() {
   const oW = W || innerWidth, oH = H || innerHeight;
-  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2);
+  W = Math.max(innerWidth, 16); H = Math.max(innerHeight, 16); DPR = Math.min(devicePixelRatio || 1, 2); // ventana oculta: no caerse
   cv.width = W * DPR; cv.height = H * DPR;
   GW = Math.ceil(W / S); GH = Math.ceil(H / S);
   trail = new Float32Array(GW * GH); tmp = new Float32Array(GW * GH);
@@ -197,6 +198,7 @@ function resize() {
     else { bx[i] *= W / oW; by[i] *= H / oH; }
   }
   if (!foco.x) { foco.x = foco.tx = W / 2; foco.y = foco.ty = H / 2; }
+  else { foco.x *= W / oW; foco.tx *= W / oW; foco.y *= H / oH; foco.ty *= H / oH; }
   buildMask();
   resetPintura();
 }
@@ -264,7 +266,7 @@ const TN = 4096, TM = TN - 1, TI = TN / TAU;
 const COS = new Float32Array(TN), SIN = new Float32Array(TN);
 for (let i = 0; i < TN; i++) { COS[i] = Math.cos(i / TI); SIN[i] = Math.sin(i / TI); }
 function stepPhysarum() {
-  const sd = P.sd, ra = K.ra, ss = 1 + P.energia * 0.9, so = Math.round(K.sa * TI);
+  const sd = P.sd, ra = K.ra, ss = (1 + P.energia * 0.9) * (1 + impulso * 1.5), so = Math.round(K.sa * TI);
   const fw = P.campo ? P.fuerza * K.campoP : 0;
   for (let i = 0; i < NP; i++) {
     let x = px[i], y = py[i], a = pa[i];
@@ -371,6 +373,16 @@ function stepBoids() {
         steer(-dx, -dy, vx, vy, maxS, maxF, sv); ax += sv[0] * 3; ay += sv[1] * 3;
       }
     }
+    // golpe (J): flee desde el foco con fuerza máxima muy alta durante un instante → la bandada estalla
+    // solo lo sienten los que están dentro del alcance del foco, más fuerte cuanto más cerca
+    if (impulso > 0.02) {
+      const gx = x - foco.x, gy = y - foco.y, gd = Math.hypot(gx, gy);
+      if (gd < focoR) {
+        const im = impulso * (1 - gd / focoR);
+        steer(gx, gy, vx, vy, maxS * (1 + 1.6 * im), maxF * (1 + 14 * im), sv);
+        ax += sv[0]; ay += sv[1];
+      }
+    }
     // wander: un punto que se pasea en un círculo adelante
     bwan[i] += (Math.random() - 0.5) * 0.5;
     const hx = vx / sp, hy = vy / sp;
@@ -378,7 +390,8 @@ function stepBoids() {
     ax += sv[0] * 0.3; ay += sv[1] * 0.3;
     // actúa
     let nvx = vx + ax, nvy = vy + ay;
-    const m = Math.hypot(nvx, nvy); if (m > maxS) { nvx *= maxS / m; nvy *= maxS / m; }
+    const lim = maxS * (1 + 1.6 * impulso);
+    const m = Math.hypot(nvx, nvy); if (m > lim) { nvx *= lim / m; nvy *= lim / m; }
     let nx = x + nvx, ny = y + nvy;
     if (nx < 0) nx += W; else if (nx >= W) nx -= W;
     if (ny < 0) ny += H; else if (ny >= H) ny -= H;
@@ -413,6 +426,7 @@ function stepTeclas() {
 
 function step() {
   t += STEP;
+  impulso *= 0.85;
   stepTeclas(); stepFoco(); updateField();
   stepBoids(); stepPhysarum(); diffuse();
 }
@@ -428,13 +442,59 @@ function draw() {
   ctx.drawImage(off, 0, 0, GW * S, GH * S);
   pintar();
   ctx.drawImage(pc, 0, 0, W, H);
+  // resplandor: la pintura reducida y vuelta a ampliar (borrosa), sumada encima.
+  // En la paleta oscura se suma luz; en la brat la tinta se difumina (como la portada del disco).
+  // Lo único que hace el audio es esto: su volumen sube y baja la intensidad del resplandor.
+  b1ctx.clearRect(0, 0, b1.width, b1.height); b1ctx.drawImage(pc, 0, 0, b1.width, b1.height);
+  b2ctx.clearRect(0, 0, b2.width, b2.height); b2ctx.drawImage(b1, 0, 0, b2.width, b2.height);
+  const glow = Math.min(1.6, 0.35 + 0.65 * nivel + 1.2 * golpe);
+  ctx.globalCompositeOperation = P.invert ? 'lighter' : 'multiply';
+  ctx.globalAlpha = Math.min(1, glow); ctx.drawImage(b1, 0, 0, W, H);
+  ctx.globalAlpha = Math.min(1, glow * 0.8); ctx.drawImage(b2, 0, 0, W, H);
+  if (glow > 1) { ctx.globalAlpha = glow - 1; ctx.drawImage(b2, 0, 0, W, H); }
+  ctx.globalAlpha = 1;
+  // destello del golpe
+  if (golpe > 0.02) {
+    ctx.globalCompositeOperation = P.invert ? 'lighter' : 'source-over';
+    ctx.fillStyle = P.invert ? `rgba(138,206,0,${0.22 * golpe})` : `rgba(255,255,255,${0.12 * golpe})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  ctx.globalCompositeOperation = 'source-over';
   // cabeza de cada boid: un punto, para que se vea quién está pintando
   ctx.fillStyle = tinta();
   ctx.beginPath();
-  const r = 1.4 + P.energia;
+  const r = 1.4 + P.energia + 1.5 * golpe;
   for (let i = 0; i < K.nB; i++) { ctx.moveTo(bx[i] + r, by[i]); ctx.arc(bx[i], by[i], r, 0, TAU); }
   ctx.fill();
   if (verPercep) drawPercepcion();
+}
+const b1 = document.createElement('canvas'), b1ctx = b1.getContext('2d');
+const b2 = document.createElement('canvas'), b2ctx = b2.getContext('2d');
+
+// ---------- respiración (audio) y golpe (tú) ----------
+// nivel: volumen de la canción, suavizado. SOLO cambia la intensidad del resplandor.
+// golpe: lo das tú con J al ritmo; es lo que hace estallar a la bandada y destellar la pantalla.
+let actx = null, analyser = null, ondas = null, nivel = 0, golpe = 0, impulso = 0;
+function prepararAnalisis() {
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = actx.createMediaElementSource(au);
+    analyser = actx.createAnalyser(); analyser.fftSize = 1024;
+    src.connect(analyser); analyser.connect(actx.destination);
+    ondas = new Float32Array(analyser.fftSize);
+  } catch (e) { actx = null; }
+}
+function medirNivel() {
+  let v = 0;
+  if (analyser && !au.paused) {
+    analyser.getFloatTimeDomainData(ondas);
+    let s = 0; for (let i = 0; i < ondas.length; i++) s += ondas[i] * ondas[i];
+    // calibrado con "360": intro ≈ 0.16, quiebre ≈ 0.21, con beat ≈ 0.43–0.49, picos ≈ 0.56
+    v = Math.max(0, Math.min(1, (Math.sqrt(s / ondas.length) - 0.1) / 0.45));
+  }
+  nivel += (v - nivel) * (v > nivel ? 0.25 : 0.06); // sube rápido, baja despacio: respira
+  golpe *= 0.86;
 }
 
 // ---------- pintura: el recorrido de la bandada se acumula (idea tomada del trabajo de Sofía) ----------
@@ -443,9 +503,11 @@ function draw() {
 const pc = document.createElement('canvas'), pctx = pc.getContext('2d');
 const pbx = new Float32Array(K.nB), pby = new Float32Array(K.nB);
 let nPint = 0;
-const tinta = () => P.invert ? '#e4ff9c' : '#000';
+const tinta = () => P.invert ? '#a6f000' : '#000';
 function resetPintura() {
   pc.width = W * DPR; pc.height = H * DPR;
+  b1.width = Math.ceil(W / 4); b1.height = Math.ceil(H / 4);
+  b2.width = Math.ceil(W / 12); b2.height = Math.ceil(H / 12);
   pbx.set(bx); pby.set(by);
 }
 function recolorPintura() { // al cambiar de paleta, lo ya pintado cambia de color pero no se pierde
@@ -469,7 +531,7 @@ function pintar() {
   pctx.globalCompositeOperation = 'source-over';
   pctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   pctx.strokeStyle = tinta(); pctx.globalAlpha = 0.55;
-  pctx.lineWidth = 1.1 + P.energia * 1.6; pctx.lineCap = 'round';
+  pctx.lineWidth = 1.1 + P.energia * 1.6 + golpe * 2; pctx.lineCap = 'round';
   pctx.beginPath();
   for (let i = 0; i < K.nB; i++) {
     const dx = bx[i] - pbx[i], dy = by[i] - pby[i];
@@ -570,6 +632,7 @@ function updatePanel(now) {
      <div class="row"><span>sensores physarum</span><b>${P.sd.toFixed(1)} celdas</b></div>${bar(P.sd, 2, 40)}
      <div class="row"><span>memoria (rastro + pintura)</span><b>${P.persist.toFixed(3)}</b></div>${bar(P.persist, 0.75, 0.985)}
      <div class="row"><span>energía</span><b>${P.energia.toFixed(2)}</b></div>${bar(P.energia, 0, 1)}
+     <div class="row"><span>respiración (volumen → solo resplandor)</span><b>${nivel.toFixed(2)}</b></div>${bar(nivel, 0, 1)}
      <div class="row"><span>agentes</span><b>${K.nB} boids · ${NP.toLocaleString('es')} physarum</b></div>
      <div class="row"><span>fps</span><b>${fps.toFixed(0)}</b></div>
      <div class="score">
@@ -625,7 +688,8 @@ addEventListener('keydown', e => {
   else if (k === 'h') document.getElementById('help').classList.toggle('on');
   else if (k === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
   else if (k === 'o') fileIn.click();
-  else if (k === 'p') { if (!au.src) toast('primero carga el audio (o)'); else au.paused ? au.play() : au.pause(); }
+  else if (k === 'p') { if (!au.src) toast('primero carga el audio (o)'); else { prepararAnalisis(); au.paused ? au.play() : au.pause(); } }
+  else if (k === 'j') { golpe = 1; impulso = 1; }
   else if (k === 'arrowleft' && au.src) au.currentTime = Math.max(0, au.currentTime - 5);
   else if (k === 'arrowright' && au.src) au.currentTime = Math.min(au.duration || 0, au.currentTime + 5);
   else if (k === 'm' && au.src) { marcas.push(au.currentTime); console.log('marca', au.currentTime.toFixed(2)); toast('marca ' + fmt(au.currentTime)); }
@@ -678,12 +742,12 @@ function frame(now) {
   acc += dt; let n = 0;
   while (acc >= STEP && n < 2) { step(); acc -= STEP; n++; }
   if (acc > STEP) acc = 0;
-  draw(); updatePanel(now);
+  medirNivel(); draw(); updatePanel(now);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 // acceso desde la consola para verificar parámetros (p. ej. __inst.P, __inst.step())
-window.__inst = { P, K, foco, get NP() { return NP; }, get fps() { return fps; }, trail: () => trail, bx, by, bvx, bvy, step, draw, fases: { stepBoids, stepPhysarum, diffuse, updateField } };
+window.__inst = { P, K, foco, get NP() { return NP; }, get fps() { return fps; }, get nivel() { return nivel; }, get golpe() { return golpe; }, get impulso() { return impulso; }, trail: () => trail, bx, by, bvx, bvy, step, draw, fases: { stepBoids, stepPhysarum, diffuse, updateField, medirNivel } };
 })();
 </script>
 </body>

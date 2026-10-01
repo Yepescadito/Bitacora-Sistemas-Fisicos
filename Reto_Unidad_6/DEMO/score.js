@@ -17,12 +17,12 @@ window.SCORE = {
     {
       desde: 13, nombre: 'verso 1',
       intencion: 'entra el beat: seguridad, ella es la referencia que los demás copian',
-      gesto: 'en el golpe de 0:13, espacio · clic sostenido: la bandada la persigue · percepción alta (X): un solo cuerpo · el physarum dibuja su camino',
+      gesto: 'J en el golpe de 0:13 · clic sostenido: la bandada la persigue · percepción alta (X): un solo cuerpo · el physarum dibuja su camino',
     },
     {
       desde: 45, nombre: 'coro 1',
       intencion: 'el giro de 360°: todo gira a su alrededor',
-      gesto: 'campo 2 (órbita) con fuerza alta (rueda) · espacio en los golpes · B escribe "360" y el physarum se lo come',
+      gesto: 'campo 2 (órbita) con fuerza alta (rueda) · J en los golpes (a tiempo, no en todos) · B escribe "360" y el physarum se lo come',
     },
     {
       desde: 61, nombre: 'verso 2',
@@ -32,7 +32,7 @@ window.SCORE = {
     {
       desde: 81, nombre: 'coro 2',
       intencion: 'el mismo giro, ahora más grande y más ruidoso',
-      gesto: 'campo 2 · fuerza al máximo · espacio sostenido · mover el foco para arrastrar el vórtice por la pantalla',
+      gesto: 'campo 2 · fuerza al máximo · espacio sostenido + J en los golpes · mover el foco para arrastrar el vórtice por la pantalla',
     },
     {
       desde: 100.5, nombre: 'quiebre',
@@ -42,7 +42,7 @@ window.SCORE = {
     {
       desde: 109, nombre: 'último coro',
       intencion: 'vuelve todo de golpe: el momento más alto',
-      gesto: 'en el golpe de 1:49, campo 3 (estallido) desde el centro + espacio · luego campo 2 · B otra vez · persistencia alta (↑)',
+      gesto: 'en el golpe de 1:49, J + campo 3 (estallido) desde el centro · luego campo 2 · B otra vez · persistencia alta (↑)',
     },
     {
       desde: 131, nombre: 'cierre',

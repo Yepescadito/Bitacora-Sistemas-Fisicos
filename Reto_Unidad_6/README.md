@@ -14,7 +14,7 @@ Diseñar y desarrollar un instrumento visual para la Web e interpretar en tiempo
 - Definir qué perciben los agentes, cuáles son sus límites y cómo calculan sus acciones.
 - Producir comportamientos emergentes y poder explicar qué aporta la combinación de reglas.
 - Ofrecer pocos controles expresivos sobre la percepción, las reglas o el entorno.
-- Que la conducción sea humana: nada de secuencias automáticas ni análisis del audio.
+- Que la conducción sea humana: nada de secuencias automáticas, y que los cambios no los decida el análisis del audio.
 - Tiempo real y pantalla completa.
 
 # Concepto
@@ -37,7 +37,7 @@ La imagen tiene dos capas con papeles distintos:
 1. **El suelo:** la red del physarum, atenuada (nunca pasa del 55 % de tinta). Es lenta y orgánica y queda de fondo.
 2. **La pintura:** la bandada no se dibuja como figuras. Cada boid deja un trazo fino desde donde estaba hasta donde está, y los trazos **se acumulan**. Lo que se ve es el recorrido de la bandada: hilos, pinceladas, el anillo del 360 hecho de cientos de líneas. Cada boid se ve solo como un punto en la punta de su trazo.
 
-La idea de que el recorrido acumulado se vuelva la imagen la tomé del **trabajo de Sofía** ("The Seed" de AURORA), donde las raíces se dibujan porque el fondo no se borra. La diferencia es que en su obra la amplitud del audio controla la velocidad, el brillo y el campo. Aquí nada depende del audio: lo que se pinta depende de las reglas de los agentes y de mis intervenciones. Además, la pintura no es permanente. Se olvida al mismo ritmo que el rastro del physarum, y los dos se controlan juntos con ↑/↓, que funciona como la **memoria** del sistema. El clic derecho también borra la pintura alrededor del foco.
+La idea de que el recorrido acumulado se vuelva la imagen la tomé del **trabajo de Sofía** ("The Seed" de AURORA), donde las raíces se dibujan porque el fondo no se borra. La diferencia es que en su obra la amplitud del audio controla la velocidad, el brillo y el campo. Aquí lo que se pinta depende de las reglas de los agentes y de mis intervenciones; el audio solo modula el resplandor (ver "Respiración y golpe"). Además, la pintura no es permanente. Se olvida al mismo ritmo que el rastro del physarum, y los dos se controlan juntos con ↑/↓, que funciona como la **memoria** del sistema. El clic derecho también borra la pintura alrededor del foco.
 
 # Qué percibe cada agente y cómo decide
 
@@ -103,12 +103,22 @@ Agrupados en cuatro intenciones:
 | **Percepción** | Z / X (sostener) | radio de percepción de la bandada | percepción |
 | | C / V (sostener) | alcance de los sensores del physarum | percepción |
 | **Energía** | espacio (sostener) | velocidad y fuerza máximas de todos | regla |
+| | J (al ritmo) | **golpe**: la bandada estalla desde el foco, los trazos se engrosan y la pantalla destella | regla + visual |
 
 Los controles de "sostener" cambian **gradualmente** mientras se mantienen: el gesto dura lo que yo quiera, como un fader.
 
 Para ensayar: O (o arrastrar) carga el audio, P reproduce/pausa, ← / → mueven 5 s, M marca el tiempo actual, R reinicia el physarum en un anillo, G muestra lo que percibe cada agente, D abre el panel de parámetros y el score, F pantalla completa, H ayuda.
 
-**El audio no se analiza.** Solo suena. Todo cambio visual lo hago yo.
+### Respiración y golpe: qué hace el audio y qué hago yo
+
+Quería que se sintiera como un visualizer, al estilo del trabajo de Sofía, pero sin que el audio condujera el sistema, que es lo que el encargo no permite. La división es estricta:
+
+| | Quién lo controla | Qué cambia | Qué **no** cambia |
+|---|---|---|---|
+| **Respiración** | el volumen de la canción (RMS, suavizado: sube rápido y baja despacio) | solo la intensidad del resplandor (el halo borroso de la pintura) | nada de los agentes: ni lo que perciben, ni sus reglas, ni el entorno |
+| **Golpe** (J) | yo, al ritmo, cuando decido | un flee instantáneo desde el foco con fuerza máxima muy alta, solo para los boids dentro del alcance del foco; trazos más gruesos y un destello | — |
+
+La respiración hace que la imagen "viva" con la canción: tenue en el intro, intensa cuando entra el beat. Pero todo lo que se mueve, se organiza o cambia de forma sigue siendo decisión mía o emergencia de las reglas. Si apago el audio, el sistema se comporta exactamente igual; solo pierde el brillo. Calibré el rango con la canción: intro ≈ 0.16 de RMS, quiebre ≈ 0.21, con beat ≈ 0.43–0.49, picos ≈ 0.56.
 
 ### Predicciones verificables (para la sustentación)
 
@@ -150,6 +160,9 @@ El score está en `DEMO/score.js` y se ve en el panel (D) junto con una línea d
 - **Prueba 7:** la paleta: un tono lineal saturaba el rastro (todo verde plano). Uso `v / (v + 3)`, que con el tope de 8 queda en ~73 % de tinta y deja ver los rastros débiles tenues.
 - **Prueba 8:** no me gustaba cómo se veía: los triángulos blancos encima de la red parecían confeti y se veían genéricos. Tomé la idea del trabajo de Sofía y cambié los triángulos por trazos que se acumulan. Atenué el physarum al 55 % para que quede como suelo. Resultado: en la órbita, el anillo se ve hecho de hilos; en la paleta brat, los trazos se ven como tinta sobre papel lima.
 - **Prueba 9:** al borrar la pintura muy suavemente en cada cuadro quedaba una neblina que nunca desaparecía: con alfa de 8 bits, un borrado del 2 % ya no alcanza a restar nada cuando el trazo es tenue. Ahora, cada 16 cuadros se borra un 12 % extra y el residuo baja a casi nada. Costo a 1080p con la capa nueva: ~8.2 ms por cuadro (6.9 simulación + 1.3 dibujo).
+- **Prueba 10:** todavía no me convencía visualmente y quería que se sintiera más como un visualizer. Dirección: brat, pero más intenso. Agregué un resplandor: la pintura reducida a 1/4 y a 1/12, ampliada otra vez y sumada encima. En la paleta oscura se suma luz (halos lima); en la brat se multiplica, y la tinta negra se difumina como en la portada del disco. Atenué más el physarum (55 % → 35 %) para que se viera menos "red".
+- **Prueba 11:** el golpe (J) al principio empujaba a todos los boids sin importar la distancia, y con golpes en cada tiempo la bandada terminaba pegada a los bordes (mediana a 538 px del foco). Ahora el golpe solo lo sienten los boids dentro del alcance del foco, con más fuerza cuanto más cerca, y dura menos. Con 8 golpes seguidos el anillo aguanta (mediana a 273 px; el anillo está a ~216). Bajé el destello blanco de la paleta brat (0.3 → 0.12) porque lavaba toda la imagen.
+- **Prueba 12:** la respiración se saturaba: la canción está muy masterizada y con la escala inicial casi siempre daba 1. Medí el RMS de cada parte y recalibré. Ahora da ≈ 0.16 en el intro y ≈ 0.6 con el beat. Costo a 1080p con el resplandor: ~9 ms por cuadro (6.4 simulación + 2.5 dibujo).
 
 # Actividades 01 y 02: análisis de los referentes
 
