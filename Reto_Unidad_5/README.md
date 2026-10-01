@@ -4,7 +4,11 @@
 
 *Presentación generativa para la charla "Relevo generacional: la ventaja que nadie está aprovechando" del Centro de Eventos Fórum UPB (Future Leaders Forum, Fortaleza, Brasil).*
 
-Demo: [`DEMO/index.html`](DEMO/index.html)
+Presentación (portugués):
+https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_5/DEMO/
+
+En español:
+https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_5/DEMO/?lang=es
 
 # El encargo
 
