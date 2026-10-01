@@ -16,6 +16,9 @@
   #splash h1 { margin:0; font-weight:400; font-size:min(42vw,62vh); line-height:.9; filter:blur(4px); }
   #splash p { margin:6px 0; font-size:clamp(14px,1.6vw,20px); }
   #splash small { opacity:.65; }
+  #cargar { margin:14px 0 6px; font:inherit; font-size:clamp(15px,1.7vw,22px); padding:8px 22px; border:2px solid #000;
+    background:transparent; color:#000; border-radius:999px; cursor:pointer; }
+  #cargar:hover { background:#000; color:var(--lime); }
 
   .hud { position:fixed; z-index:5; color:#fff; background:rgba(0,0,0,.78); font-size:13px;
     line-height:1.45; padding:12px 14px; border-radius:6px; display:none; }
@@ -51,7 +54,8 @@
 <div id="splash" class="brat">
   <h1>360</h1>
   <p>instrumento visual · charli xcx</p>
-  <p><small>arrastra el mp3 aquí o presiona o · clic para empezar · h ayuda</small></p>
+  <button id="cargar" class="brat">cargar canción</button>
+  <p><small id="estado">elige el mp3 (o arrástralo aquí) · se queda guardado en este navegador · clic para empezar · h ayuda</small></p>
 </div>
 
 <div id="panel" class="hud brat"></div>
@@ -524,6 +528,12 @@ function loadAudio(f) {
   if (!f || !/^audio\//.test(f.type) && !/\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(f.name)) return toast('ese archivo no es audio');
   au.src = URL.createObjectURL(f); audioName = f.name; toast('audio: ' + f.name.toLowerCase() + ' · p para reproducir');
   au.addEventListener('loadedmetadata', buildTimeline, { once: true });
+  guardarCancion(f); cancionLista(f.name);
+}
+function cancionLista(nombre) {
+  const e = document.getElementById('estado');
+  if (e) e.textContent = 'canción lista: ' + nombre.replace(/\.[^.]+$/, '').toLowerCase() + ' · clic para empezar · p para reproducir';
+  const b = document.getElementById('cargar'); if (b) b.textContent = 'cambiar canción';
 }
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const SC = window.SCORE || { cancion: '', pasajes: [] };
@@ -581,6 +591,7 @@ function toast(m) { const e = document.getElementById('toast'); e.textContent = 
 const splash = document.getElementById('splash');
 function start() { if (started) return; started = true; splash.style.display = 'none'; }
 splash.addEventListener('click', start);
+document.getElementById('cargar').addEventListener('click', e => { e.stopPropagation(); document.getElementById('file').click(); });
 
 cv.addEventListener('pointermove', e => { foco.tx = e.clientX; foco.ty = e.clientY; });
 cv.addEventListener('pointerdown', e => {
@@ -629,12 +640,34 @@ addEventListener('resize', resize);
 function autoAudio(src) {
   if (audioName) return;
   au.addEventListener('error', () => { if (!audioName) au.removeAttribute('src'); }, { once: true });
-  au.addEventListener('loadedmetadata', () => { if (!audioName) { audioName = '360.mp3'; buildTimeline(); toast('audio: 360.mp3 · p para reproducir'); } }, { once: true });
+  au.addEventListener('loadedmetadata', () => { if (!audioName) { audioName = '360.mp3'; buildTimeline(); toast('audio: 360.mp3 · p para reproducir'); cancionLista('360.mp3'); } }, { once: true });
   au.src = src;
 }
+// La última canción cargada se guarda en este navegador (IndexedDB): al volver a abrir el link ya está.
+// Nunca sale del navegador; si el navegador no deja guardar, simplemente hay que cargarla otra vez.
+function idb() {
+  return new Promise((ok, mal) => {
+    const r = indexedDB.open('instrumento-360', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('audio');
+    r.onsuccess = () => ok(r.result); r.onerror = () => mal(r.error);
+  });
+}
+async function guardarCancion(f) {
+  try { const db = await idb(); db.transaction('audio', 'readwrite').objectStore('audio').put({ blob: f, nombre: f.name }, 'cancion'); } catch (e) {}
+}
+async function cancionGuardada() {
+  try {
+    const db = await idb();
+    return await new Promise(ok => { const r = db.transaction('audio').objectStore('audio').get('cancion'); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); });
+  } catch (e) { return null; }
+}
+async function cargarGuardada() {
+  const c = await cancionGuardada();
+  if (c && !audioName) { au.src = URL.createObjectURL(c.blob); audioName = c.nombre; au.addEventListener('loadedmetadata', buildTimeline, { once: true }); cancionLista(c.nombre); }
+}
 fetch('audio/360.mp3').then(r => r.ok ? r.blob() : null)
-  .then(b => { if (b) autoAudio(URL.createObjectURL(b)); })
-  .catch(() => autoAudio('audio/360.mp3'));
+  .then(b => { if (b) autoAudio(URL.createObjectURL(b)); else cargarGuardada(); })
+  .catch(() => { autoAudio('audio/360.mp3'); cargarGuardada(); });
 
 // ---------- bucle ----------
 buildLut(); resize(); buildTimeline();
