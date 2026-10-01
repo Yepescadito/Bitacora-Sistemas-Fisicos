@@ -98,15 +98,18 @@ Mis respuestas a las preguntas de la unidad:
 - **Prueba 7:** los logos del cliente (PDF) son oscuros y no se verían sobre fondo negro. Los convertí a blanco con transparencia (la oscuridad de cada píxel se vuelve opacidad) y los puse pequeños arriba a la derecha en todas las slides.
 - **Prueba 8:** el cliente pidió "poner a dialogar la imagen de Fórum con la del evento". En lugar de solo poner el logo del Future Leaders Forum, tomé su paleta: el remolino del logo tiene tres bandas entrelazadas (rojo, azul y rosado), que ya es una imagen de relevo. Ahora la experiencia es roja, las nuevas generaciones azules y **el vínculo entre generaciones es rosado**, un color que solo aparece cuando las dos se encuentran. El cierre convierte la red en un remolino de dos brazos enlazados. El logo del evento aparece en la apertura y en el cierre.
 - **Prueba 9:** los QR venían en una captura de pantalla (~3 px por módulo) y ampliados se verían borrosos en pantalla grande. Medí su cuadrícula (33×33 módulos), los redibujé nítidos y verifiqué que se lean: memorias → `juanferfranco.github.io/ForumTEDTALK`, redes → `instagram.com/centrodeeventosupb`.
+- **Prueba 10:** el cliente pidió que fuera "híbrida por si hay que compartir en móvil". El diseño original asumía pantalla horizontal: en un celular las estructuras se montaban sobre el texto. Ahora, si la pantalla no es claramente horizontal (ancho < 1.25 × alto), cambia la composición: la estructura va arriba, el texto abajo a todo el ancho y el velo oscuro protege la parte inferior. Cada escena reacomoda su geometría (el auditorio cabe en el ancho, el triángulo se reorganiza, la torre se apoya sobre el texto) y se puede avanzar deslizando el dedo. En horizontal todo queda igual.
 
 # Cómo usarla
 
-Abre `DEMO/index.html` en Chrome o Edge (funciona sin conexión).
+Online: **https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_5/DEMO/** (agrega `?lang=es` para español). También funciona sin conexión abriendo `DEMO/index.html` en Chrome o Edge, y en celular (vertical u horizontal).
 
 | Tecla | Acción |
 |---|---|
 | → · Espacio · Clic · Av Pág | Avanzar (algunas slides tienen 2 pasos) |
 | ← · Clic derecho · Re Pág | Volver |
+| Celular: tocar · deslizar ← | Avanzar |
+| Celular: deslizar → | Volver |
 | F | Pantalla completa |
 | L | Cambiar idioma (portugués / español) |
 | D | **Panel de relaciones**: muestra qué relación hay en pantalla, cuántos vínculos de cada tipo existen y la tensión media (para explicar el sistema en vivo) |

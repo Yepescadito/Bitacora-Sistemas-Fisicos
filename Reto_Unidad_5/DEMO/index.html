@@ -80,10 +80,10 @@ canvas { position: fixed; inset: 0; display: block; }
 #qr img { width: clamp(110px, 10vw, 220px); border-radius: 10px; image-rendering: pixelated; }
 #qr figcaption { font-size: clamp(13px, 1vw, 20px); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
 
-/* Logos institucionales: pequeños, en todas las slides */
 /* Logo del evento (co-branding): solo en apertura y cierre */
 #evento { position: fixed; left: 3vw; top: 4vh; height: clamp(54px, 10vh, 130px); opacity: 0; transition: opacity 1.2s; pointer-events: none; }
 #evento.on { opacity: 1; }
+/* Logos institucionales: pequeños, en todas las slides */
 #logos { position: fixed; right: 3vw; top: 4vh; display: flex; align-items: center; gap: 1.4vw; pointer-events: none; }
 #logos img { height: clamp(22px, 3.2vh, 46px); opacity: .85; }
 #logos img.upb90 { height: clamp(36px, 5.4vh, 78px); }  /* su forma es más alta: más altura para igualar peso visual */
@@ -116,6 +116,33 @@ canvas { position: fixed; inset: 0; display: block; }
 #debug .fila { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
 #debug .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
 #ayuda kbd { display: inline-block; min-width: 26px; padding: 1px 6px; margin-right: 6px; border-radius: 5px; background: #1c1d25; text-align: center; font-family: inherit; }
+
+/* ---------- Pantalla vertical (celular): estructura arriba, texto abajo a todo el ancho ----------
+   La clase la pone el JS con el mismo umbral que usan las escenas (ancho < 1.25·alto). */
+body.vertical #velo {
+  background: linear-gradient(0deg, rgba(7,8,12,.88) 0%, rgba(7,8,12,.55) 26%, rgba(7,8,12,0) 44%);
+}
+body.vertical #texto,
+body.vertical #texto.tl,
+body.vertical #texto.titulo {
+  left: 7vw; right: 7vw; top: auto; bottom: 9vh;
+  max-width: none; transform: none; text-align: left;
+}
+body.vertical #texto.titulo { text-align: center; }
+body.vertical .linea { font-size: clamp(20px, 6.2vw, 44px); }
+body.vertical #texto.titulo .linea { font-size: clamp(22px, 7vw, 50px); }
+body.vertical #texto .linea.sub { font-size: clamp(12px, 3.4vw, 20px); }
+body.vertical .etiqueta { font-size: clamp(10px, 2.8vw, 16px); letter-spacing: .14em; }
+body.vertical #qr { gap: 6vw; margin-bottom: 0; }
+body.vertical #qr img { width: clamp(96px, 30vw, 200px); }
+body.vertical #qr figcaption { font-size: clamp(10px, 2.6vw, 15px); letter-spacing: .1em; }
+body.vertical #evento { left: 5vw; top: 2.6vh; height: clamp(40px, 6vh, 80px); }
+body.vertical #logos { right: 5vw; top: 2.6vh; gap: 3vw; }
+body.vertical #logos img { height: clamp(16px, 2.4vh, 30px); }
+body.vertical #logos img.upb90 { height: clamp(26px, 3.8vh, 48px); }
+body.vertical #logos .sep { height: clamp(14px, 2vh, 26px); }
+body.vertical #hud { bottom: 2.4vh; font-size: 11px; }
+body.vertical #pista { top: auto; bottom: 3vh; width: 90vw; text-align: center; }
 </style>
 </head>
 <body>
@@ -197,6 +224,7 @@ const SLIDES = [
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 let W, H, M, Ms, DPR;
+let VERT = false, CX = 0, CY = 0;  // pantalla vertical y centro de la composición (ver resize)
 const N_EXP = 80, N_JOV = 110;
 const CE = '238,50,57', CJ = '1,161,223', CM = '242,143,189';  // rojo, azul, rosado (Future Leaders Forum)
 const ps = [];
@@ -365,9 +393,9 @@ SC[0] = {
   set() {
     Object.assign(P, { noise: .15, drag: .9, trail: .22 });
     releaseAll();
-    const e = E(), j = J(), R = M * .15, y = H * .37;
-    assign(e, phyllo(e.length, W * .34, y, R), .015);
-    assign(j, phyllo(j.length, W * .66, y, R * 1.12), .015);
+    const e = E(), j = J(), R = M * (VERT ? .14 : .15), y = H * (VERT ? .33 : .37), dx = W * (VERT ? .25 : .16);
+    assign(e, phyllo(e.length, W * .5 - dx, y, R), .015);
+    assign(j, phyllo(j.length, W * .5 + dx, y, R * 1.12), .015);
     knn(e, 3, { k: .06 }); knn(j, 3, { k: .06 });
     const a = e.reduce((m, p) => p.tx > m.tx ? p : m);
     const b = j.reduce((m, p) => p.tx < m.tx ? p : m);
@@ -378,7 +406,9 @@ SC[0] = {
 
 // 2 — Auditorio: filas rígidas, una sola función
 function auditorio(scale, tk) {
-  const list = [...J(), ...E()], rows = 8, cx = W * .5, cy = H * 1.04, r0 = H * .3, r1 = H * .8;
+  // Vertical: el auditorio cabe en el ancho y queda sobre el texto
+  const list = [...J(), ...E()], rows = 8, cx = W * .5,
+    cy = VERT ? H * .6 : H * 1.04, r0 = VERT ? W * .12 : H * .3, r1 = VERT ? W * .47 : H * .8;
   const rs = []; let tot = 0;
   for (let i = 0; i < rows; i++) { const r = r0 + (r1 - r0) * i / (rows - 1); rs.push(r); tot += r; }
   const out = []; let idx = 0;
@@ -420,7 +450,7 @@ SC[2] = {
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
         pts.push({ x: -W * .03 + (c + .5 + rnd(-.3, .3)) * cw, y: -H * .03 + (r + .5 + rnd(-.3, .3)) * ch });
       pts = shuffle(pts).slice(0, ps.length);
-      const ox = W * .5, oy = H * 1.04, ang = (x, y) => Math.atan2(y - oy, x - ox);
+      const ox = W * .5, oy = VERT ? H * .6 : H * 1.04, ang = (x, y) => Math.atan2(y - oy, x - ox);
       pts.sort((a, b) => ang(a.x, a.y) - ang(b.x, b.y));
       const list = ps.slice().sort((a, b) => ang(a.x, a.y) - ang(b.x, b.y));
       assignIdx(list, pts, .008);
@@ -435,7 +465,9 @@ SC[3] = {
   set() {
     Object.assign(P, { noise: .08, drag: .88, trail: .25 });
     releaseAll();
-    const hubs = [[W * .67, H * .22], [W * .85, H * .66], [W * .49, H * .66]];
+    const hubs = VERT
+      ? [[W * .5, H * .2], [W * .76, H * .52], [W * .24, H * .52]]
+      : [[W * .67, H * .22], [W * .85, H * .66], [W * .49, H * .66]];
     const list = interleave(E(), J());
     const groups = [[], [], []];
     list.forEach((p, i) => groups[i % 3].push(p));
@@ -460,7 +492,7 @@ SC[3] = {
 // 5 — Impacto: del nudo aislado a la propagación
 SC[4] = {
   set(l) {
-    const cx = W * .67, cy = H * .5;
+    const cx = CX, cy = CY;
     if (l === 0) {
       Object.assign(P, { noise: .25, drag: .92, trail: .25 });
       releaseAll(.02);
@@ -509,7 +541,7 @@ SC[4] = {
 // 6 — Comunidad: multitud sin vínculos → red que se transforma junta
 SC[5] = {
   set(l, fresh) {
-    const cx = W * .67, cy = H * .48;
+    const cx = CX, cy = CY;
     if (fresh) {
       const own = assign(ps, phyllo(ps.length, cx, cy, M * .27), .006);
       for (const p of own) { p.bth = Math.atan2(p.ty - cy, p.tx - cx); p.brr = Math.hypot(p.tx - cx, p.ty - cy); }
@@ -541,7 +573,7 @@ SC[6] = {
   set() {
     Object.assign(P, { noise: .06, drag: .88, trail: .25 });
     releaseAll(.02);
-    const cx = W * .67, cy = H * .5;
+    const cx = CX, cy = CY;
     assignIdx(interleave(E(), J()), phyllo(ps.length, cx, cy, M * .38), .02);
     const e = E();
     S.q = [];
@@ -584,9 +616,9 @@ SC[7] = {
       S.path = [];
       for (let i = 0; i < n; i++) {
         const u = i / (n - 1);
-        S.path.push({ x: W * (.06 + .88 * u), y: H * (.42 + .07 * Math.sin(u * 6.283 * .9 + .6)) });
+        S.path.push({ x: W * (.06 + .88 * u), y: CY + (VERT ? -H * .02 : -H * .08) + M * (VERT ? .12 : .07) * Math.sin(u * 6.283 * .9 + .6) });
       }
-      S.start = { x: W * .03, y: H * .42 };
+      S.start = { x: W * .03, y: S.path[0].y };
       const defs = [
         { u: .16, a: -1.3, c: -.03 }, { u: .33, a: -1.9, c: .035 }, { u: .5, a: -1.25, c: -.02 },
         { u: .68, a: .95, c: -.03 }, { u: .84, a: -1.7, c: .03 }
@@ -634,7 +666,7 @@ SC[8] = {
   set(l) {
     Object.assign(P, { noise: .03, drag: .86, trail: .2 });
     releaseAll(.03);
-    const cx = W * .67, cy = H * .5;
+    const cx = CX, cy = CY;
     if (l === 0) {
       const own = assign(ps, ringPts(ps.length, cx, cy, M * .34), .025);
       chain(own, true, { k: .12 });
@@ -658,7 +690,7 @@ SC[9] = {
   set(l) {
     Object.assign(P, { noise: .05, drag: .88, trail: .22 });
     releaseAll(.03);
-    const cx = W * .67, cy = H * .5;
+    const cx = CX, cy = CY;
     if (l === 0) {
       const pts = hexPts(N_JOV, cx, cy, M * .2);
       assign(J(), pts, .03);
@@ -681,12 +713,17 @@ SC[10] = {
     Object.assign(P, { noise: .08, drag: .88, trail: .22 });
     releaseAll(.03);
     if (l === 0) {
-      const pts = hexPts(N_EXP, W * .6, H * .5, M * .22);
+      const pts = hexPts(N_EXP, CX - (VERT ? 0 : W * .07), CY, M * .22);
       assign(E(), pts, .02);
       knn(E(), 6, { k: .07, maxD: pts.s * 1.2 });
-      for (const p of J()) { p.tx = rnd(W * .9, W * 1.02); p.ty = rnd(H * .08, H * .92); p.tk = .02; p.aT = .22; p.rsT = .7; }
+      // lejos, en el borde: a la derecha (horizontal) o arriba (vertical)
+      for (const p of J()) {
+        if (VERT) { p.tx = rnd(W * .02, W * .98); p.ty = rnd(H * .02, H * .1); }
+        else { p.tx = rnd(W * .9, W * 1.02); p.ty = rnd(H * .08, H * .92); }
+        p.tk = .02; p.aT = .22; p.rsT = .7;
+      }
     } else {
-      const cx = W * .67, cy = H * .5;
+      const cx = CX, cy = CY;
       const pts = hexPts(N_JOV, cx, cy, M * .25);
       assign(J(), pts, .02);
       knn(J(), 6, { k: .07, maxD: pts.s * 1.2 });
@@ -708,19 +745,21 @@ SC[10] = {
 SC[11] = {
   set(l) {
     Object.assign(P, { noise: .02, drag: .88, trail: .22 });
-    S.floor = H * .95;
-    const cx = W * .67;
+    // Vertical: la construcción se apoya sobre el texto, no en el borde inferior
+    const base = VERT ? H * .62 : H * .9;
+    S.floor = VERT ? H * .655 : H * .95;
+    const cx = CX;
     if (l === 0) {
       releaseAll(.03);
-      const pts = truss(N_EXP, cx, H * .9, W * .09, M * .05);
+      const pts = truss(N_EXP, cx, base, VERT ? W * .2 : W * .09, M * .05);
       S.tower = assign(E(), pts, .04);
       S.tower.forEach((p, i) => { p.row = pts[i].row; p.drop = false; });
       S.rows = pts.rows;
       pairsWithin(pts, M * .05 * 1.15).forEach(([a, b]) => want(S.tower[a], S.tower[b], { k: .12 }));
-      for (const p of J()) { p.tx = rnd(W * .46, W * .96); p.ty = S.floor; p.tk = .02; p.aT = .5; }
+      for (const p of J()) { p.tx = VERT ? rnd(W * .04, W * .96) : rnd(W * .46, W * .96); p.ty = S.floor; p.tk = .02; p.aT = .5; }
     } else {
       releaseAll(.05);
-      const s = M * .046, pts = truss(ps.length, cx, H * .9, W * .2, s);
+      const s = M * .046, pts = truss(ps.length, cx, base, VERT ? W * .4 : W * .2, s);
       const order = pts.map((p, i) => i).sort((a, b) => pts[a].row - pts[b].row || pts[a].x - pts[b].x);
       const list = interleave(E(), J());
       S.build = order.map((pi, i) => ({ p: list[i], pt: pts[pi] }));
@@ -755,7 +794,7 @@ SC[12] = {
   set() {
     Object.assign(P, { noise: .04, drag: .88, trail: .18 });
     releaseAll(.02);
-    const cx = W * .67, cy = H * .5, R = M * .42;
+    const cx = CX, cy = CY, R = M * .42;
     S.c = [cx, cy];
     S.arms = [E(), J()].map((list, k) => {
       const n = list.length;
@@ -993,10 +1032,26 @@ addEventListener('keydown', e => {
 });
 addEventListener('click', e => { if (e.shiftKey) prev(); else next(); });
 addEventListener('contextmenu', e => { e.preventDefault(); prev(); });
+// Celular: deslizar a la izquierda avanza, a la derecha vuelve (tocar también avanza)
+let tx0 = 0, ty0 = 0;
+addEventListener('touchstart', e => { tx0 = e.touches[0].clientX; ty0 = e.touches[0].clientY; }, { passive: true });
+addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx0, dy = e.changedTouches[0].clientY - ty0;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { e.preventDefault(); dx < 0 ? next() : prev(); }
+});
 
 function resize() {
   DPR = Math.min(2, window.devicePixelRatio || 1);
-  W = innerWidth; H = innerHeight; M = Math.min(W, H); Ms = M / 1000;
+  W = innerWidth; H = innerHeight;
+  // Horizontal: texto en la columna izquierda, estructura a la derecha.
+  // Vertical (celular): estructura en la parte de arriba, texto abajo.
+  // Diseño vertical si la pantalla no es claramente horizontal (4:3 y 16:9 siguen horizontales)
+  VERT = W < H * 1.25;
+  document.body.classList.toggle('vertical', VERT);
+  M = VERT ? Math.min(W, H * .6) : Math.min(W, H);
+  Ms = M / 1000;
+  CX = VERT ? W * .5 : W * .67;
+  CY = VERT ? H * .37 : H * .5;
   cv.width = W * DPR; cv.height = H * DPR;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
