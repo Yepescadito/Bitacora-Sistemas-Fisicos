@@ -1,6 +1,7 @@
 // Textos de la presentación, separados del sistema visual.
 // Cada slide tiene "pasos": cada paso es una lista de líneas que aparecen juntas.
-// {e:texto} se pinta con el color de la experiencia, {j:texto} con el de las nuevas generaciones.
+// {e:texto} se pinta con el color de la experiencia (rojo), {j:texto} con el de las nuevas generaciones (azul).
+// "qr" son las etiquetas de los dos QR del cierre (memorias y redes), en el mismo orden que el cliente.
 // Para cambiar el idioma en vivo: tecla L, o abrir index.html?lang=es
 
 window.TEXTOS = {
@@ -18,7 +19,7 @@ window.TEXTOS = {
       { pasos: [["O crescimento não acontece quando uma geração substitui a outra."], ["Acontece quando trabalham juntas."]] },
       { pasos: [["Os {j:jovens} não são o futuro."], ["São o {j:presente} que muitas organizações ainda não enxergam."]] },
       { pasos: [["O futuro não se herda."], ["Se constrói."]] },
-      { pasos: [["@centrodeeventosupb"]], qr: ["Memórias", "Redes"] }
+      { pasos: [[]], qr: ["Anais", "@centrodeeventosupb"] }
     ],
     ui: {
       inicio: "→ avançar · ← voltar · F tela cheia · L idioma · H ajuda",
@@ -41,7 +42,7 @@ window.TEXTOS = {
       { pasos: [["El crecimiento no ocurre cuando una generación reemplaza a otra."], ["Ocurre cuando trabajan juntas."]] },
       { pasos: [["Los {j:jóvenes} no son el futuro."], ["Son el {j:presente} que muchas organizaciones aún no ven."]] },
       { pasos: [["El futuro no se hereda."], ["Se construye."]] },
-      { pasos: [["@centrodeeventosupb"]], qr: ["Memorias", "Redes"] }
+      { pasos: [[]], qr: ["Memorias", "@centrodeeventosupb"] }
     ],
     ui: {
       inicio: "→ avanzar · ← volver · F pantalla completa · L idioma · H ayuda",

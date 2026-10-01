@@ -7,8 +7,10 @@
 <style>
 :root {
   --bg: #07080c;
-  --exp: #f2a541;
-  --jov: #4cc9f0;
+  /* Paleta del Future Leaders Forum (remolino del logo) */
+  --exp: #ee3239;   /* experiencia: rojo */
+  --jov: #01a1df;   /* nuevas generaciones: azul */
+  --rel: #f28fbd;   /* vínculo entre generaciones: rosado */
   --ink: #f4f1ea;
   --muted: #9a9aa6;
 }
@@ -25,8 +27,9 @@ html, body {
   position: fixed; inset: 0; width: 100%; height: 100%;
   object-fit: cover; opacity: 0; filter: grayscale(1) contrast(1.1);
   transition: opacity 1.4s; pointer-events: none;
+  mix-blend-mode: screen;   /* sobre el canvas: aclara el fondo sin tapar las partículas */
 }
-#foto.on { opacity: .13; }
+#foto.on { opacity: .16; }
 canvas { position: fixed; inset: 0; display: block; }
 /* Velo que protege la columna de texto sin ocultar la estructura */
 #velo {
@@ -74,10 +77,17 @@ canvas { position: fixed; inset: 0; display: block; }
 
 #qr { display: flex; gap: 2.4vw; margin-bottom: 4vh; pointer-events: none; }
 #qr figure { display: flex; flex-direction: column; align-items: center; gap: .8em; }
-#qr img { width: clamp(110px, 10vw, 220px); background: #fff; padding: 8px; border-radius: 10px; }
+#qr img { width: clamp(110px, 10vw, 220px); border-radius: 10px; image-rendering: pixelated; }
 #qr figcaption { font-size: clamp(13px, 1vw, 20px); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
 
-#logo { position: fixed; right: 3vw; top: 4vh; height: clamp(34px, 4vh, 64px); opacity: .9; }
+/* Logos institucionales: pequeños, en todas las slides */
+/* Logo del evento (co-branding): solo en apertura y cierre */
+#evento { position: fixed; left: 3vw; top: 4vh; height: clamp(54px, 10vh, 130px); opacity: 0; transition: opacity 1.2s; pointer-events: none; }
+#evento.on { opacity: 1; }
+#logos { position: fixed; right: 3vw; top: 4vh; display: flex; align-items: center; gap: 1.4vw; pointer-events: none; }
+#logos img { height: clamp(22px, 3.2vh, 46px); opacity: .85; }
+#logos img.upb90 { height: clamp(36px, 5.4vh, 78px); }  /* su forma es más alta: más altura para igualar peso visual */
+#logos .sep { width: 1px; height: clamp(20px, 2.8vh, 40px); background: rgba(255,255,255,.35); }
 
 #hud {
   position: fixed; right: 3vw; bottom: 3.2vh;
@@ -93,7 +103,7 @@ canvas { position: fixed; inset: 0; display: block; }
 }
 
 #debug, #ayuda {
-  position: fixed; top: 3vh; right: 3vw; width: min(420px, 90vw);
+  position: fixed; top: 11vh; right: 3vw; width: min(420px, 90vw);
   padding: 18px 20px; border-radius: 14px;
   background: rgba(12,13,18,.88); border: 1px solid rgba(255,255,255,.08);
   backdrop-filter: blur(8px);
@@ -109,12 +119,18 @@ canvas { position: fixed; inset: 0; display: block; }
 </style>
 </head>
 <body>
-<img id="foto" alt="">
+
 <canvas id="c"></canvas>
+<img id="foto" alt="">
 <div id="velo"></div>
 <div id="texto"></div>
 <div id="etiquetas"></div>
-<img id="logo" src="assets/logo-forum.png" alt="" onerror="this.remove()">
+<img id="evento" src="assets/logo-flf.png" alt="IMEX Future Leaders Forum" onerror="this.remove()">
+<div id="logos">
+  <img src="assets/logo-forum.png" alt="Fórum UPB Centro de Eventos" onerror="this.remove()">
+  <span class="sep"></span>
+  <img class="upb90" src="assets/logo-upb90.png" alt="UPB 90 años" onerror="this.remove()">
+</div>
 <div id="hud"></div>
 <div id="barra"></div>
 <div id="pista"></div>
@@ -141,22 +157,22 @@ canvas { position: fixed; inset: 0; display: block; }
 
 // ---------- Metadatos visuales por slide (los textos viven en textos.js) ----------
 const SLIDES = [
-  { pos: 'titulo', nombre: 'Título',
+  { pos: 'titulo', evento: true, foto: 'assets/foto-titulo.jpg', nombre: 'Título',
     rel: 'Dos generaciones separadas, cohesionadas por dentro. Un único vínculo débil las une: la ventaja que nadie aprovecha.' },
   { pos: 'tl', foto: 'assets/foto1.jpg', nombre: 'Auditorio',
     rel: 'Vínculos rígidos solo entre vecinos de fila y atracción fuerte a su silla. Estructura fija: un espacio con una sola función.' },
-  { pos: 'tl', nombre: 'Apertura',
+  { pos: 'tl', foto: 'assets/foto-mundo.jpg', nombre: 'Apertura',
     rel: ['Los vínculos de fila se aflojan y desaparecen: la estructura deja de estar cerrada.',
           'La red se expande hasta los bordes de la pantalla: la universidad sale a encontrarse con el mundo.'] },
-  { pos: 'bl', foto: 'assets/foto2.jpg', nombre: 'Tres nodos',
+  { pos: 'bl', foto: 'assets/foto2.jpeg', nombre: 'Tres nodos',
     rel: 'Tres grupos con vínculos internos y pocos puentes entre ellos. Si un grupo se mueve, arrastra a los otros dos.' },
   { pos: 'bl', foto: 'assets/foto3.jpg', nombre: 'Impacto',
     rel: ['Un nudo denso y aislado: el evento como objeto. El resto queda desconectado y tenue.',
           'Red radial. Cada pulso nace en el centro y se propaga por los vínculos hasta el borde: el impacto es propagación.'] },
-  { pos: 'bl', nombre: 'Comunidad',
+  { pos: 'bl', foto: 'assets/foto-comunidad.jpg', nombre: 'Comunidad',
     rel: ['Partículas reunidas pero sin vínculos: una multitud, no una comunidad.',
           'Aparecen los vínculos y la forma completa empieza a transformarse en conjunto.'] },
-  { pos: 'bl', nombre: 'Confianza',
+  { pos: 'bl', foto: 'assets/foto-confianza.jpg', nombre: 'Confianza',
     rel: 'Los vínculos intergeneracionales nacen débiles y ganan fuerza lentamente. El tamaño y brillo de cada joven depende de la confianza acumulada; con suficiente confianza, los jóvenes se conectan entre sí.' },
   { pos: 'bl', foto: 'assets/foto4.jpg', nombre: 'Caminos',
     rel: ['La experiencia se encadena partícula a partícula y construye un camino.',
@@ -164,16 +180,16 @@ const SLIDES = [
   { pos: 'tl', nombre: 'Visión',
     rel: ['Un solo anillo con ambas generaciones.',
           'El anillo se divide en dos que se solapan; los vínculos en la intersección los mantienen unidos.'] },
-  { pos: 'bl', nombre: 'Crecimiento',
+  { pos: 'bl', foto: 'assets/foto-juntas.jpg', nombre: 'Crecimiento',
     rel: ['Reemplazo: la experiencia se desvanece y la estructura joven queda pequeña.',
           'Trabajo conjunto: red mixta con vínculos entre generaciones y el doble de tamaño.'] },
   { pos: 'bl', nombre: 'Presente',
     rel: ['Los jóvenes, tenues y sin vínculos en el borde: tratados como futuro lejano.',
           'Los jóvenes forman el núcleo; las organizaciones (anillo exterior) giran alrededor sin conectarse con ellos.'] },
-  { pos: 'tl', foto: 'assets/foto5.jpg', nombre: 'Construcción',
+  { pos: 'tl', foto: 'assets/foto5.jpeg', nombre: 'Construcción',
     rel: ['La estructura heredada pierde sus vínculos de arriba hacia abajo y se derrumba.',
           'Ambas generaciones construyen una estructura nueva desde la base, fila por fila.'] },
-  { pos: 'bl', foto: 'assets/foto6.jpg', nombre: 'Cierre',
+  { pos: 'bl', evento: true, foto: 'assets/foto6.jpg', nombre: 'Cierre',
     rel: 'La red construida queda en reposo y respira: se sostiene sola.' },
 ];
 
@@ -182,7 +198,7 @@ const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 let W, H, M, Ms, DPR;
 const N_EXP = 80, N_JOV = 110;
-const CE = '242,165,65', CJ = '76,201,240';
+const CE = '238,50,57', CJ = '1,161,223', CM = '242,143,189';  // rojo, azul, rosado (Future Leaders Forum)
 const ps = [];
 const links = new Map();
 const P = { drag: .88, noise: 0, trail: .25 };
@@ -733,20 +749,41 @@ SC[11] = {
   }
 };
 
-// 13 — Cierre: la red construida respira
+// 13 — Cierre: dos brazos de espiral (una generación cada uno) enlazados en rosado,
+//      en diálogo con el remolino del Future Leaders Forum. Gira y respira.
 SC[12] = {
   set() {
-    Object.assign(P, { noise: .1, drag: .9, trail: .2 });
+    Object.assign(P, { noise: .04, drag: .88, trail: .18 });
     releaseAll(.02);
-    const cx = W * .67, cy = H * .5;
-    const own = assign(ps, phyllo(ps.length, cx, cy, M * .4, 1.25), .01);
-    own.forEach(p => { p.bx = p.tx - cx; p.by = p.ty - cy; p.aT = .85; });
-    knn(ps, 2, { k: .03 });
+    const cx = W * .67, cy = H * .5, R = M * .42;
     S.c = [cx, cy];
+    S.arms = [E(), J()].map((list, k) => {
+      const n = list.length;
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        const u = i / (n - 1);
+        pts.push({ r: R * (.1 + .9 * u), th: k * Math.PI + u * Math.PI * 4 });
+      }
+      const xy = pts.map(q => ({ x: cx + Math.cos(q.th) * q.r, y: cy + Math.sin(q.th) * q.r }));
+      const own = assign(list, xy, .02);
+      own.forEach((p, i) => { p.br = pts[i].r; p.bth = pts[i].th; p.aT = .95; });
+      chain(own, false, { k: .07 });
+      return own;
+    });
+    // Vínculos entre brazos vecinos: el relevo que sostiene el remolino
+    const [ae, aj] = S.arms;
+    for (let i = 0; i < ae.length; i++) {
+      const p = ae[i];
+      const q = aj.reduce((m, x) => Math.hypot(x.tx - p.tx, x.ty - p.ty) < Math.hypot(m.tx - p.tx, m.ty - p.ty) ? x : m);
+      if (Math.hypot(q.tx - p.tx, q.ty - p.ty) < R * .3) want(p, q, { k: .03, rate: .01 });
+    }
   },
   upd() {
-    const [cx, cy] = S.c, f = 1 + .04 * Math.sin(st * .8);
-    for (const p of ps) { p.tx = cx + p.bx * f; p.ty = cy + p.by * f; }
+    const [cx, cy] = S.c, f = 1 + .03 * Math.sin(st * .8), rot = st * .06;
+    for (const p of ps) {
+      p.tx = cx + Math.cos(p.bth + rot) * p.br * f;
+      p.ty = cy + Math.sin(p.bth + rot) * p.br * f;
+    }
   }
 };
 
@@ -825,12 +862,8 @@ function draw() {
     const tension = L.rest > 0 ? Math.abs((L.d || L.rest) - L.rest) / L.rest : 0;
     const al = Math.min(1, .2 + .45 * L.s + Math.min(.35, tension * .8) + Math.max(a.g, b.g) * .6) * L.s * Math.min(a.a, b.a);
     ctx.lineWidth = (.7 + L.s * .8 + Math.min(1.6, tension * 3)) * Ms;
-    if (L.kind === 'm') {
-      const gr = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-      gr.addColorStop(0, `rgba(${a.gen ? CJ : CE},${al})`);
-      gr.addColorStop(1, `rgba(${b.gen ? CJ : CE},${al})`);
-      ctx.strokeStyle = gr;
-    } else ctx.strokeStyle = `rgba(${L.kind === 'e' ? CE : CJ},${al})`;
+    // El vínculo entre generaciones tiene color propio: el tercer color del remolino del evento
+    ctx.strokeStyle = `rgba(${L.kind === 'm' ? CM : L.kind === 'e' ? CE : CJ},${al})`;
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
   }
   for (const p of ps) {
@@ -903,6 +936,7 @@ function entrar(paso) {
   reset();
   SC[si].set(li, true);
   $('velo').classList.toggle('off', SLIDES[si].pos === 'titulo');
+  $('evento')?.classList.toggle('on', !!SLIDES[si].evento);
   renderTexto(); hud(); foto();
 }
 function avanzarPaso(n) {
@@ -932,7 +966,7 @@ function debug() {
     <div class="rel">${rel}</div>
     <div class="fila"><span><span class="dot" style="background:var(--exp)"></span>vínculos experiencia</span><b>${c.e}</b></div>
     <div class="fila"><span><span class="dot" style="background:var(--jov)"></span>vínculos nuevas generaciones</span><b>${c.j}</b></div>
-    <div class="fila"><span><span class="dot" style="background:linear-gradient(90deg,var(--exp),var(--jov))"></span>vínculos entre generaciones</span><b>${c.m}</b></div>
+    <div class="fila"><span><span class="dot" style="background:var(--rel)"></span>vínculos entre generaciones</span><b>${c.m}</b></div>
     <div class="fila"><span>tensión media</span><b>${n ? (ten / n * 100).toFixed(1) : '0.0'}%</b></div>
     <div class="fila"><span>ruido · fricción</span><b>${P.noise.toFixed(2)} · ${P.drag.toFixed(2)}</b></div>`;
 }
