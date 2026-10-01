@@ -153,7 +153,9 @@ En flow fields hay dos cosas distintas: el **campo** (un mapa de ángulos) y la 
 
 # Cómo usarlo
 
-Online: **https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_6/DEMO/** o abriendo `DEMO/index.html` en Chrome/Edge. Arrastrar el mp3 de "360" a la ventana (o presionar O), F para pantalla completa, P para reproducir. El archivo de audio no se sube al repositorio.
+Online: **https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_6/DEMO/** o abriendo `DEMO/index.html` en Chrome/Edge. Arrastrar el mp3 de "360" a la ventana (o presionar O), F para pantalla completa, P para reproducir.
+
+Para no cargarlo cada vez: guardar la canción como `DEMO/audio/360.mp3` y abrir `DEMO/index.html` desde el computador; se carga sola. Esa carpeta está en `.gitignore`: la canción tiene derechos de autor y no se sube al repositorio público.
 
 # Autoevaluación
 

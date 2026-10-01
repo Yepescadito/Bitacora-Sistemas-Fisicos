@@ -581,6 +581,11 @@ addEventListener('keyup', e => held.delete(e.key.toLowerCase()));
 addEventListener('blur', () => { held.clear(); foco.modo = 0; });
 addEventListener('resize', resize);
 
+// si existe audio/360.mp3 junto a esta página (solo en tu computador: la carpeta está en .gitignore), se carga solo
+au.addEventListener('error', () => { if (!audioName) au.removeAttribute('src'); }, { once: true });
+au.addEventListener('loadedmetadata', () => { if (!audioName) { audioName = '360.mp3'; buildTimeline(); toast('audio: 360.mp3 · p para reproducir'); } }, { once: true });
+au.src = 'audio/360.mp3';
+
 // ---------- bucle ----------
 buildLut(); resize(); buildTimeline();
 let last = performance.now(), acc = 0;
