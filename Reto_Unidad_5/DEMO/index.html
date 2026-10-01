@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relevo generacional — Fórum UPB</title>
+<style>
+:root {
+  --bg: #07080c;
+  --exp: #f2a541;
+  --jov: #4cc9f0;
+  --ink: #f4f1ea;
+  --muted: #9a9aa6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+}
+#foto {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0; filter: grayscale(1) contrast(1.1);
+  transition: opacity 1.4s; pointer-events: none;
+}
+#foto.on { opacity: .13; }
+canvas { position: fixed; inset: 0; display: block; }
+/* Velo que protege la columna de texto sin ocultar la estructura */
+#velo {
+  position: fixed; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(7,8,12,.78) 0%, rgba(7,8,12,.35) 34%, rgba(7,8,12,0) 50%);
+  transition: opacity 1s;
+}
+#velo.off { opacity: 0; }
+
+#texto {
+  position: fixed; left: 6vw; bottom: 11vh;
+  max-width: 38vw; pointer-events: none;
+}
+#texto.tl { top: 10vh; bottom: auto; }
+#texto.titulo { left: 50%; transform: translateX(-50%); bottom: 9vh; max-width: 88vw; text-align: center; }
+.linea {
+  display: block;
+  font-weight: 600;
+  font-size: clamp(26px, 3vw, 64px);
+  line-height: 1.12;
+  letter-spacing: -.012em;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity .9s ease, transform .9s ease;
+  text-shadow: 0 2px 28px rgba(0,0,0,.85);
+}
+.linea + .linea { margin-top: .32em; }
+.linea.on { opacity: 1; transform: none; }
+#texto.titulo .linea { font-size: clamp(30px, 3.6vw, 76px); font-weight: 700; letter-spacing: .01em; }
+#texto.titulo .linea + .linea { margin-top: .08em; }
+#texto .linea.sub {
+  font-size: clamp(15px, 1.3vw, 26px); font-weight: 400;
+  color: var(--muted); letter-spacing: .08em; margin-top: 1.2em;
+}
+.e { color: var(--exp); }
+.j { color: var(--jov); }
+
+.etiqueta {
+  position: fixed; transform: translate(-50%, -50%);
+  font-size: clamp(13px, 1.15vw, 22px); letter-spacing: .2em; text-transform: uppercase;
+  opacity: 0; transition: opacity 1.2s; pointer-events: none;
+  text-shadow: 0 0 18px #000;
+}
+.etiqueta.on { opacity: .9; }
+
+#qr { display: flex; gap: 2.4vw; margin-bottom: 4vh; pointer-events: none; }
+#qr figure { display: flex; flex-direction: column; align-items: center; gap: .8em; }
+#qr img { width: clamp(110px, 10vw, 220px); background: #fff; padding: 8px; border-radius: 10px; }
+#qr figcaption { font-size: clamp(13px, 1vw, 20px); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+
+#logo { position: fixed; right: 3vw; top: 4vh; height: clamp(34px, 4vh, 64px); opacity: .9; }
+
+#hud {
+  position: fixed; right: 3vw; bottom: 3.2vh;
+  font-size: 13px; letter-spacing: .14em; color: var(--muted);
+  font-variant-numeric: tabular-nums; opacity: .7;
+}
+#barra { position: fixed; left: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--exp), var(--jov)); transition: width .8s; opacity: .7; }
+
+#pista {
+  position: fixed; left: 50%; top: 3vh; transform: translateX(-50%);
+  font-size: 13px; letter-spacing: .08em; color: var(--muted);
+  transition: opacity 1.5s; pointer-events: none;
+}
+
+#debug, #ayuda {
+  position: fixed; top: 3vh; right: 3vw; width: min(420px, 90vw);
+  padding: 18px 20px; border-radius: 14px;
+  background: rgba(12,13,18,.88); border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(8px);
+  font-size: 14px; line-height: 1.5; color: #d9d9e0;
+  display: none;
+}
+#debug.on, #ayuda.on { display: block; }
+#debug h3, #ayuda h3 { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; font-weight: 600; }
+#debug .rel { margin: 6px 0 12px; color: var(--ink); }
+#debug .fila { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+#debug .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+#ayuda kbd { display: inline-block; min-width: 26px; padding: 1px 6px; margin-right: 6px; border-radius: 5px; background: #1c1d25; text-align: center; font-family: inherit; }
+</style>
+</head>
+<body>
+<img id="foto" alt="">
+<canvas id="c"></canvas>
+<div id="velo"></div>
+<div id="texto"></div>
+<div id="etiquetas"></div>
+<img id="logo" src="assets/logo-forum.png" alt="" onerror="this.remove()">
+<div id="hud"></div>
+<div id="barra"></div>
+<div id="pista"></div>
+<div id="debug"></div>
+<div id="ayuda">
+  <h3>Controles</h3>
+  <div><kbd>→</kbd><kbd>Espacio</kbd><kbd>Clic</kbd> avanzar</div>
+  <div><kbd>←</kbd> volver</div>
+  <div><kbd>F</kbd> pantalla completa</div>
+  <div><kbd>L</kbd> idioma (pt / es)</div>
+  <div><kbd>D</kbd> panel de relaciones (explicación)</div>
+  <div><kbd>Inicio</kbd><kbd>Fin</kbd> primera / última slide</div>
+  <div><kbd>H</kbd> esta ayuda</div>
+</div>
+
+<script src="textos.js"></script>
+<script>
+// =====================================================================
+//  RELEVO GENERACIONAL — presentación generativa
+//  Dos poblaciones de partículas (experiencia / nuevas generaciones)
+//  unidas por resortes. Cada slide cambia QUÉ vínculos existen, su
+//  rigidez y hacia dónde tiran las partículas.
+// =====================================================================
+
+// ---------- Metadatos visuales por slide (los textos viven en textos.js) ----------
+const SLIDES = [
+  { pos: 'titulo', nombre: 'Título',
+    rel: 'Dos generaciones separadas, cohesionadas por dentro. Un único vínculo débil las une: la ventaja que nadie aprovecha.' },
+  { pos: 'tl', foto: 'assets/foto1.jpg', nombre: 'Auditorio',
+    rel: 'Vínculos rígidos solo entre vecinos de fila y atracción fuerte a su silla. Estructura fija: un espacio con una sola función.' },
+  { pos: 'tl', nombre: 'Apertura',
+    rel: ['Los vínculos de fila se aflojan y desaparecen: la estructura deja de estar cerrada.',
+          'La red se expande hasta los bordes de la pantalla: la universidad sale a encontrarse con el mundo.'] },
+  { pos: 'bl', foto: 'assets/foto2.jpg', nombre: 'Tres nodos',
+    rel: 'Tres grupos con vínculos internos y pocos puentes entre ellos. Si un grupo se mueve, arrastra a los otros dos.' },
+  { pos: 'bl', foto: 'assets/foto3.jpg', nombre: 'Impacto',
+    rel: ['Un nudo denso y aislado: el evento como objeto. El resto queda desconectado y tenue.',
+          'Red radial. Cada pulso nace en el centro y se propaga por los vínculos hasta el borde: el impacto es propagación.'] },
+  { pos: 'bl', nombre: 'Comunidad',
+    rel: ['Partículas reunidas pero sin vínculos: una multitud, no una comunidad.',
+          'Aparecen los vínculos y la forma completa empieza a transformarse en conjunto.'] },
+  { pos: 'bl', nombre: 'Confianza',
+    rel: 'Los vínculos intergeneracionales nacen débiles y ganan fuerza lentamente. El tamaño y brillo de cada joven depende de la confianza acumulada; con suficiente confianza, los jóvenes se conectan entre sí.' },
+  { pos: 'bl', foto: 'assets/foto4.jpg', nombre: 'Caminos',
+    rel: ['La experiencia se encadena partícula a partícula y construye un camino.',
+          'Las nuevas generaciones recorren el camino y se ramifican en rutas propias, ancladas a él.'] },
+  { pos: 'tl', nombre: 'Visión',
+    rel: ['Un solo anillo con ambas generaciones.',
+          'El anillo se divide en dos que se solapan; los vínculos en la intersección los mantienen unidos.'] },
+  { pos: 'bl', nombre: 'Crecimiento',
+    rel: ['Reemplazo: la experiencia se desvanece y la estructura joven queda pequeña.',
+          'Trabajo conjunto: red mixta con vínculos entre generaciones y el doble de tamaño.'] },
+  { pos: 'bl', nombre: 'Presente',
+    rel: ['Los jóvenes, tenues y sin vínculos en el borde: tratados como futuro lejano.',
+          'Los jóvenes forman el núcleo; las organizaciones (anillo exterior) giran alrededor sin conectarse con ellos.'] },
+  { pos: 'tl', foto: 'assets/foto5.jpg', nombre: 'Construcción',
+    rel: ['La estructura heredada pierde sus vínculos de arriba hacia abajo y se derrumba.',
+          'Ambas generaciones construyen una estructura nueva desde la base, fila por fila.'] },
+  { pos: 'bl', foto: 'assets/foto6.jpg', nombre: 'Cierre',
+    rel: 'La red construida queda en reposo y respira: se sostiene sola.' },
+];
+
+// ---------- Estado ----------
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let W, H, M, Ms, DPR;
+const N_EXP = 80, N_JOV = 110;
+const CE = '242,165,65', CJ = '76,201,240';
+const ps = [];
+const links = new Map();
+const P = { drag: .88, noise: 0, trail: .25 };
+const S = {};            // datos de la escena actual
+let si = 0, li = 0;      // slide y paso actuales
+let t = 0, st = 0, lt = 0; // tiempo total, en la slide, en el paso
+let lang = 'pt';
+
+// ---------- Utilidades ----------
+const rnd = (a, b) => a + Math.random() * (b - a);
+const E = () => ps.filter(p => p.gen === 0);
+const J = () => ps.filter(p => p.gen === 1);
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function interleave(a, b) {
+  const out = []; let i = 0, j = 0;
+  while (i < a.length || j < b.length) {
+    if (i >= a.length) out.push(b[j++]);
+    else if (j >= b.length) out.push(a[i++]);
+    else if ((i + .5) / a.length <= (j + .5) / b.length) out.push(a[i++]);
+    else out.push(b[j++]);
+  }
+  return out;
+}
+
+function crear() {
+  let id = 0;
+  for (let g = 0; g < 2; g++) {
+    const n = g ? N_JOV : N_EXP;
+    for (let i = 0; i < n; i++) ps.push({
+      id: id++, gen: g,
+      x: rnd(0, W), y: rnd(0, H), vx: 0, vy: 0,
+      m: g ? 1 : 2.2,            // la experiencia tiene más inercia
+      r0: g ? 3.3 : 4.8,
+      a: 0, aT: 1, rs: 1, rsT: 1,
+      tx: null, ty: null, tk: 0,
+      g: 0, ng: 0, gy: 0,
+      ph: Math.random() * 6.283,
+    });
+  }
+}
+
+function reset() {
+  for (const p of ps) { p.aT = 1; p.rsT = 1; p.gy = 0; }
+}
+
+// ---------- Vínculos (resortes) ----------
+function key(a, b) { return a.id < b.id ? a.id * 1024 + b.id : b.id * 1024 + a.id; }
+function target(p) { return p.tx != null ? [p.tx, p.ty] : [p.x, p.y]; }
+function want(a, b, o = {}) {
+  if (a === b) return null;
+  const k = key(a, b);
+  let L = links.get(k);
+  const [ax, ay] = target(a), [bx, by] = target(b);
+  if (!L) { L = { a, b, s: 0, d: 0, kind: a.gen === b.gen ? (a.gen ? 'j' : 'e') : 'm' }; links.set(k, L); }
+  L.k = o.k ?? .08;
+  L.rest = o.rest ?? Math.hypot(ax - bx, ay - by);
+  L.sT = o.s ?? 1;
+  L.rate = o.rate ?? .03;
+  return L;
+}
+function releaseAll(rate = .03) { for (const L of links.values()) { L.sT = 0; L.rate = rate; } }
+function releaseOf(p, rate = .05) { for (const L of links.values()) if (L.a === p || L.b === p) { L.sT = 0; L.rate = rate; } }
+
+function knn(list, k, o = {}) {
+  const maxD = o.maxD ?? Infinity;
+  for (const a of list) {
+    const [ax, ay] = target(a);
+    const c = [];
+    for (const b of list) {
+      if (b === a) continue;
+      const [bx, by] = target(b);
+      const d = (ax - bx) ** 2 + (ay - by) ** 2;
+      if (d < maxD * maxD) c.push([d, b]);
+    }
+    c.sort((u, v) => u[0] - v[0]);
+    for (let i = 0; i < Math.min(k, c.length); i++) want(a, c[i][1], o);
+  }
+}
+function chain(list, closed, o = {}) {
+  for (let i = 0; i < list.length - 1; i++) want(list[i], list[i + 1], o);
+  if (closed && list.length > 2) want(list[list.length - 1], list[0], o);
+}
+
+// ---------- Formas (listas de puntos objetivo) ----------
+function phyllo(n, cx, cy, R, sx = 1) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const r = R * Math.sqrt((i + .5) / n), a = i * 2.39996;
+    pts.push({ x: cx + Math.cos(a) * r * sx, y: cy + Math.sin(a) * r });
+  }
+  return pts;
+}
+function ringPts(n, cx, cy, r, off = -Math.PI / 2) {
+  const pts = [];
+  for (let i = 0; i < n; i++) { const a = off + i / n * Math.PI * 2; pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, a }); }
+  return pts;
+}
+function hexPts(n, cx, cy, R) {
+  const s = Math.sqrt(Math.PI * R * R / (n * .866));
+  const rows = Math.ceil(R * 1.5 / (s * .866));
+  const pts = [];
+  for (let r = -rows; r <= rows; r++) for (let c = -rows * 2; c <= rows * 2; c++) {
+    const x = (c + (r & 1) * .5) * s, y = r * s * .866;
+    pts.push({ x: cx + x, y: cy + y, d: x * x + y * y, row: r });
+  }
+  pts.sort((a, b) => a.d - b.d);
+  const out = pts.slice(0, n);
+  out.s = s;
+  return out;
+}
+// Celosía triangular que se estrecha hacia arriba (torre / estructura construida)
+function truss(n, cx, by, HW, s) {
+  const pts = []; let k = 0, c0 = null;
+  while (pts.length < n) {
+    const hw = Math.max(s * 1.5, HW - k * s * .32);
+    let c = Math.floor(2 * hw / s) + 1;
+    if (c0 === null) c0 = c % 2;
+    if (c % 2 !== (c0 + k) % 2) c--;
+    let row = [];
+    for (let i = 0; i < c; i++) row.push({ x: cx + (i - (c - 1) / 2) * s, y: by - k * s * .866, row: k });
+    const left = n - pts.length;
+    if (row.length > left) { const o = Math.floor((row.length - left) / 2); row = row.slice(o, o + left); }
+    pts.push(...row);
+    k++;
+  }
+  pts.rows = k;
+  return pts;
+}
+function pairsWithin(pts, d) {
+  const out = [];
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++)
+    if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) < d) out.push([i, j]);
+  return out;
+}
+
+// Asigna cada punto a la partícula libre más cercana (transiciones suaves)
+function assign(list, pts, tk = .02) {
+  const free = list.slice(), owner = [];
+  for (const pt of pts) {
+    let bi = 0, bd = Infinity;
+    for (let k = 0; k < free.length; k++) {
+      const p = free[k], d = (p.x - pt.x) ** 2 + (p.y - pt.y) ** 2;
+      if (d < bd) { bd = d; bi = k; }
+    }
+    const p = free.splice(bi, 1)[0];
+    p.tx = pt.x; p.ty = pt.y; p.tk = tk;
+    owner.push(p);
+  }
+  return owner;
+}
+// Asignación por orden (cuando importa qué generación ocupa qué punto)
+function assignIdx(list, pts, tk = .02) {
+  list.forEach((p, i) => { p.tx = pts[i].x; p.ty = pts[i].y; p.tk = tk; });
+  return list;
+}
+
+// =====================================================================
+//  ESCENAS: set(paso, fresca) define relaciones; upd(paso) las anima
+// =====================================================================
+const SC = [];
+
+// 1 — Título: dos generaciones separadas, un solo hilo entre ellas
+SC[0] = {
+  set() {
+    Object.assign(P, { noise: .15, drag: .9, trail: .22 });
+    releaseAll();
+    const e = E(), j = J(), R = M * .15, y = H * .37;
+    assign(e, phyllo(e.length, W * .34, y, R), .015);
+    assign(j, phyllo(j.length, W * .66, y, R * 1.12), .015);
+    knn(e, 3, { k: .06 }); knn(j, 3, { k: .06 });
+    const a = e.reduce((m, p) => p.tx > m.tx ? p : m);
+    const b = j.reduce((m, p) => p.tx < m.tx ? p : m);
+    want(a, b, { k: .006, s: .7 });
+  },
+  upd() {}
+};
+
+// 2 — Auditorio: filas rígidas, una sola función
+function auditorio(scale, tk) {
+  const list = [...J(), ...E()], rows = 8, cx = W * .5, cy = H * 1.04, r0 = H * .3, r1 = H * .8;
+  const rs = []; let tot = 0;
+  for (let i = 0; i < rows; i++) { const r = r0 + (r1 - r0) * i / (rows - 1); rs.push(r); tot += r; }
+  const out = []; let idx = 0;
+  const a0 = Math.PI + .32, a1 = Math.PI * 2 - .32;
+  for (let i = 0; i < rows; i++) {
+    const c = i === rows - 1 ? list.length - idx : Math.round(list.length * rs[i] / tot);
+    const row = [];
+    for (let k = 0; k < c; k++) {
+      const a = a0 + (a1 - a0) * (k + .5) / c, p = list[idx++];
+      p.tx = cx + Math.cos(a) * rs[i] * scale; p.ty = cy + Math.sin(a) * rs[i] * scale; p.tk = tk;
+      row.push(p);
+    }
+    out.push(row);
+  }
+  return out;
+}
+SC[1] = {
+  set() {
+    Object.assign(P, { noise: 0, drag: .82, trail: .35 });
+    releaseAll();
+    for (const row of auditorio(1, .06)) chain(row, false, { k: .25 });
+  },
+  upd() {}
+};
+
+// 3 — Apertura: la estructura cerrada se afloja y se abre al mundo
+SC[2] = {
+  set(l) {
+    if (l === 0) {
+      Object.assign(P, { noise: .05, drag: .86, trail: .3 });
+      releaseAll(.008);
+      auditorio(1.07, .02);
+    } else {
+      Object.assign(P, { noise: .2, drag: .9, trail: .2 });
+      releaseAll(.02);
+      const cols = Math.round(Math.sqrt(ps.length * W / H)), rows = Math.ceil(ps.length / cols);
+      const cw = W * 1.06 / cols, ch = H * 1.06 / rows;
+      let pts = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
+        pts.push({ x: -W * .03 + (c + .5 + rnd(-.3, .3)) * cw, y: -H * .03 + (r + .5 + rnd(-.3, .3)) * ch });
+      pts = shuffle(pts).slice(0, ps.length);
+      const ox = W * .5, oy = H * 1.04, ang = (x, y) => Math.atan2(y - oy, x - ox);
+      pts.sort((a, b) => ang(a.x, a.y) - ang(b.x, b.y));
+      const list = ps.slice().sort((a, b) => ang(a.x, a.y) - ang(b.x, b.y));
+      assignIdx(list, pts, .008);
+      knn(ps, 3, { k: .03, rate: .006, maxD: Math.max(cw, ch) * 2.2 });
+    }
+  },
+  upd() {}
+};
+
+// 4 — Academia + Industria + Ciudad: tres grupos unidos por puentes
+SC[3] = {
+  set() {
+    Object.assign(P, { noise: .08, drag: .88, trail: .25 });
+    releaseAll();
+    const hubs = [[W * .67, H * .22], [W * .85, H * .66], [W * .49, H * .66]];
+    const list = interleave(E(), J());
+    const groups = [[], [], []];
+    list.forEach((p, i) => groups[i % 3].push(p));
+    groups.forEach((g, i) => { assign(g, phyllo(g.length, hubs[i][0], hubs[i][1], M * .11), .02); knn(g, 3, { k: .07 }); });
+    for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) {
+      const [hx, hy] = hubs[b];
+      const near = groups[a].slice().sort((p, q) => Math.hypot(p.tx - hx, p.ty - hy) - Math.hypot(q.tx - hx, q.ty - hy)).slice(0, 4);
+      for (const p of near) {
+        const q = groups[b].reduce((m, x) => Math.hypot(x.tx - p.tx, x.ty - p.ty) < Math.hypot(m.tx - p.tx, m.ty - p.ty) ? x : m);
+        want(p, q, { k: .02 });
+      }
+    }
+    const gx = (hubs[0][0] + hubs[1][0] + hubs[2][0]) / 3, gy = (hubs[0][1] + hubs[1][1] + hubs[2][1]) / 3;
+    etiquetas(hubs.map(([x, y]) => {
+      const dx = x - gx, dy = y - gy, d = Math.hypot(dx, dy);
+      return [x + dx / d * M * .17, y + dy / d * M * .17];
+    }));
+  },
+  upd() {}
+};
+
+// 5 — Impacto: del nudo aislado a la propagación
+SC[4] = {
+  set(l) {
+    const cx = W * .67, cy = H * .5;
+    if (l === 0) {
+      Object.assign(P, { noise: .25, drag: .92, trail: .25 });
+      releaseAll(.02);
+      const list = interleave(E(), J());
+      const knot = list.slice(0, 36), rest = list.slice(36);
+      assign(knot, phyllo(36, cx, cy, M * .065), .04);
+      knn(knot, 4, { k: .12 });
+      for (const p of rest) { p.tx = null; p.tk = 0; p.aT = .3; }
+    } else {
+      Object.assign(P, { noise: .03, drag: .88, trail: .2 });
+      releaseAll(.02);
+      const sp = M * .043, rings = [];
+      let left = ps.length, k = 1;
+      while (left > 0) {
+        const r = k * sp * 1.08;
+        const c = Math.min(left, Math.max(6, Math.round(2 * Math.PI * r / sp)));
+        rings.push(ringPts(c, cx, cy, r, Math.random() * 6.28));
+        left -= c; k++;
+      }
+      const sorted = ps.slice().sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy));
+      let idx = 0;
+      S.rings = rings.map(pts => { const chunk = sorted.slice(idx, idx += pts.length); return assign(chunk, pts, .03); });
+      S.rings.forEach((own, i) => {
+        own.sort((a, b) => Math.atan2(a.ty - cy, a.tx - cx) - Math.atan2(b.ty - cy, b.tx - cx));
+        chain(own, true, { k: .06 });
+        if (i > 0) for (const p of own) {
+          const q = S.rings[i - 1].reduce((m, x) => Math.hypot(x.tx - p.tx, x.ty - p.ty) < Math.hypot(m.tx - p.tx, m.ty - p.ty) ? x : m);
+          want(p, q, { k: .09 });
+        }
+      });
+      S.c = [cx, cy];
+      S.pulse = .8;
+    }
+  },
+  upd(l) {
+    if (l !== 1 || lt < S.pulse) return;
+    S.pulse += 2.6;
+    const [cx, cy] = S.c;
+    for (const p of S.rings[0]) {
+      const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy) || 1;
+      p.g = 1; p.vx += dx / d * 5 * Ms; p.vy += dy / d * 5 * Ms;
+    }
+  }
+};
+
+// 6 — Comunidad: multitud sin vínculos → red que se transforma junta
+SC[5] = {
+  set(l, fresh) {
+    const cx = W * .67, cy = H * .48;
+    if (fresh) {
+      const own = assign(ps, phyllo(ps.length, cx, cy, M * .27), .006);
+      for (const p of own) { p.bth = Math.atan2(p.ty - cy, p.tx - cx); p.brr = Math.hypot(p.tx - cx, p.ty - cy); }
+      S.c = [cx, cy];
+    }
+    if (l === 0) {
+      Object.assign(P, { noise: .35, drag: .9, trail: .22 });
+      releaseAll(.03);
+    } else {
+      Object.assign(P, { noise: .08, drag: .88, trail: .2 });
+      for (const p of ps) p.tk = .02;
+      knn(ps, 3, { k: .05, rate: .01 });
+    }
+  },
+  upd(l) {
+    if (l !== 1) return;
+    const [cx, cy] = S.c;
+    for (const p of ps) {
+      const th = p.bth;
+      const f = 1 + .25 * Math.sin(3 * th + lt * .45) + .12 * Math.sin(2 * th - lt * .7 + 1);
+      p.tx = cx + Math.cos(th) * p.brr * f * 1.15;
+      p.ty = cy + Math.sin(th) * p.brr * f;
+    }
+  }
+};
+
+// 7 — Confianza: los vínculos se fortalecen lento; el talento crece con ellos
+SC[6] = {
+  set() {
+    Object.assign(P, { noise: .06, drag: .88, trail: .25 });
+    releaseAll(.02);
+    const cx = W * .67, cy = H * .5;
+    assignIdx(interleave(E(), J()), phyllo(ps.length, cx, cy, M * .38), .02);
+    const e = E();
+    S.q = [];
+    for (const p of J()) {
+      p.aT = .3; p.rsT = .45; p.ok = false;
+      e.slice().sort((a, b) => Math.hypot(a.tx - p.tx, a.ty - p.ty) - Math.hypot(b.tx - p.tx, b.ty - p.ty))
+        .slice(0, 2).forEach(q => S.q.push([p, q]));
+    }
+    shuffle(S.q);
+    S.qi = 0;
+    for (const p of e) p.aT = .9;
+  },
+  upd() {
+    while (S.qi < S.q.length && st > S.qi * .07) {
+      const [a, b] = S.q[S.qi++];
+      want(a, b, { k: .05, rate: .002 });
+    }
+    const j = J();
+    for (const p of j) p.tr = 0;
+    for (const L of links.values()) if (L.kind === 'm') { (L.a.gen ? L.a : L.b).tr += L.s; }
+    for (const p of j) {
+      const tr = Math.min(1, p.tr / 2);
+      p.rsT = .45 + .8 * tr; p.aT = .3 + .7 * tr;
+      if (tr > .85 && !p.ok) {
+        p.ok = true;
+        j.filter(q => q !== p).sort((a, b) => Math.hypot(a.tx - p.tx, a.ty - p.ty) - Math.hypot(b.tx - p.tx, b.ty - p.ty))
+          .slice(0, 2).forEach(q => want(p, q, { k: .04, rate: .006 }));
+      }
+    }
+  }
+};
+
+// 8 — Caminos: la experiencia construye el camino; los jóvenes abren rutas
+SC[7] = {
+  set(l, fresh) {
+    if (fresh) {
+      const e = E();
+      S.eOrd = e.slice().sort((a, b) => a.x - b.x);
+      const n = S.eOrd.length;
+      S.path = [];
+      for (let i = 0; i < n; i++) {
+        const u = i / (n - 1);
+        S.path.push({ x: W * (.06 + .88 * u), y: H * (.42 + .07 * Math.sin(u * 6.283 * .9 + .6)) });
+      }
+      S.start = { x: W * .03, y: H * .42 };
+      const defs = [
+        { u: .16, a: -1.3, c: -.03 }, { u: .33, a: -1.9, c: .035 }, { u: .5, a: -1.25, c: -.02 },
+        { u: .68, a: .95, c: -.03 }, { u: .84, a: -1.7, c: .03 }
+      ];
+      const j = J(), per = Math.ceil(j.length / defs.length), sp = M * .0145;
+      S.br = defs.map((d, b) => {
+        const root = S.eOrd[Math.round(d.u * (n - 1))];
+        const rp = S.path[Math.round(d.u * (n - 1))];
+        const pts = []; let x = rp.x, y = rp.y, a = d.a;
+        const mem = j.slice(b * per, (b + 1) * per);
+        for (let k = 0; k < mem.length; k++) { a += d.c; x += Math.cos(a) * sp; y += Math.sin(a) * sp; pts.push({ x, y }); }
+        return { root, pts, mem };
+      });
+    }
+    Object.assign(P, { noise: .03, drag: .86, trail: .2 });
+    releaseAll(.03);
+    if (l === 0) {
+      for (const p of J()) { p.tx = S.start.x + rnd(-1, 1) * M * .04; p.ty = S.start.y + rnd(-1, 1) * M * .06; p.tk = .02; p.aT = .55; p.rsT = .8; }
+    }
+  },
+  upd(l) {
+    const e = S.eOrd;
+    for (let i = 0; i < e.length; i++) {
+      const p = e[i];
+      p.tk = .03;
+      if (st > i * .035) {
+        p.tx = S.path[i].x; p.ty = S.path[i].y;
+        if (i > 0) want(e[i - 1], p, { k: .15 });
+        if (i > 1) want(e[i - 2], p, { k: .05 });
+      } else { p.tx = S.start.x; p.ty = S.start.y; }
+    }
+    if (l !== 1) return;
+    S.br.forEach((br, b) => br.mem.forEach((p, k) => {
+      p.tk = .025;
+      if (lt > .4 + k * .11 + b * .15) {
+        p.tx = br.pts[k].x; p.ty = br.pts[k].y;
+        want(k ? br.mem[k - 1] : br.root, p, { k: .15 });
+      } else { p.tx = br.root.tx; p.ty = br.root.ty; }
+    }));
+  }
+};
+
+// 9 — Visión: un anillo → dos anillos que comparten intersección
+SC[8] = {
+  set(l) {
+    Object.assign(P, { noise: .03, drag: .86, trail: .2 });
+    releaseAll(.03);
+    const cx = W * .67, cy = H * .5;
+    if (l === 0) {
+      const own = assign(ps, ringPts(ps.length, cx, cy, M * .34), .025);
+      chain(own, true, { k: .12 });
+      for (let i = 0; i < own.length; i++) want(own[i], own[(i + 2) % own.length], { k: .04 });
+    } else {
+      const oe = assign(E(), ringPts(N_EXP, cx - M * .13, cy, M * .26), .025);
+      const oj = assign(J(), ringPts(N_JOV, cx + M * .13, cy, M * .3), .025);
+      for (const own of [oe, oj]) {
+        chain(own, true, { k: .12 });
+        for (let i = 0; i < own.length; i++) want(own[i], own[(i + 2) % own.length], { k: .04 });
+      }
+      for (const a of oe) for (const b of oj)
+        if (Math.hypot(a.tx - b.tx, a.ty - b.ty) < M * .05) want(a, b, { k: .05 });
+    }
+  },
+  upd() {}
+};
+
+// 10 — Crecimiento: reemplazo (pequeño) vs. trabajo conjunto (grande)
+SC[9] = {
+  set(l) {
+    Object.assign(P, { noise: .05, drag: .88, trail: .22 });
+    releaseAll(.03);
+    const cx = W * .67, cy = H * .5;
+    if (l === 0) {
+      const pts = hexPts(N_JOV, cx, cy, M * .2);
+      assign(J(), pts, .03);
+      knn(J(), 6, { k: .08, maxD: pts.s * 1.2 });
+      for (const p of E()) { p.tx = p.x; p.ty = H * 1.12; p.tk = .004; p.aT = .08; }
+    } else {
+      const pts = hexPts(ps.length, cx, cy, M * .42);
+      const s = pts.s;
+      pts.sort((a, b) => a.row - b.row || a.x - b.x);
+      assignIdx(interleave(E(), J()), pts, .02);
+      knn(ps, 6, { k: .06, maxD: s * 1.15 });
+    }
+  },
+  upd() {}
+};
+
+// 11 — Presente: del borde (futuro) al núcleo (presente)
+SC[10] = {
+  set(l) {
+    Object.assign(P, { noise: .08, drag: .88, trail: .22 });
+    releaseAll(.03);
+    if (l === 0) {
+      const pts = hexPts(N_EXP, W * .6, H * .5, M * .22);
+      assign(E(), pts, .02);
+      knn(E(), 6, { k: .07, maxD: pts.s * 1.2 });
+      for (const p of J()) { p.tx = rnd(W * .9, W * 1.02); p.ty = rnd(H * .08, H * .92); p.tk = .02; p.aT = .22; p.rsT = .7; }
+    } else {
+      const cx = W * .67, cy = H * .5;
+      const pts = hexPts(N_JOV, cx, cy, M * .25);
+      assign(J(), pts, .02);
+      knn(J(), 6, { k: .07, maxD: pts.s * 1.2 });
+      for (const p of J()) p.rsT = 1.15;
+      const own = assign(E(), ringPts(N_EXP, cx, cy, M * .44), .02);
+      own.forEach(p => { p.bth = Math.atan2(p.ty - cy, p.tx - cx); p.aT = .45; });
+      chain(own, true, { k: .05 });
+      S.ring = own; S.c = [cx, cy];
+    }
+  },
+  upd(l) {
+    if (l !== 1) return;
+    const [cx, cy] = S.c, R = M * .44, th = lt * .05;
+    for (const p of S.ring) { p.tx = cx + Math.cos(p.bth + th) * R; p.ty = cy + Math.sin(p.bth + th) * R; }
+  }
+};
+
+// 12 — Construcción: lo heredado se derrumba; lo nuevo se construye fila a fila
+SC[11] = {
+  set(l) {
+    Object.assign(P, { noise: .02, drag: .88, trail: .22 });
+    S.floor = H * .95;
+    const cx = W * .67;
+    if (l === 0) {
+      releaseAll(.03);
+      const pts = truss(N_EXP, cx, H * .9, W * .09, M * .05);
+      S.tower = assign(E(), pts, .04);
+      S.tower.forEach((p, i) => { p.row = pts[i].row; p.drop = false; });
+      S.rows = pts.rows;
+      pairsWithin(pts, M * .05 * 1.15).forEach(([a, b]) => want(S.tower[a], S.tower[b], { k: .12 }));
+      for (const p of J()) { p.tx = rnd(W * .46, W * .96); p.ty = S.floor; p.tk = .02; p.aT = .5; }
+    } else {
+      releaseAll(.05);
+      const s = M * .046, pts = truss(ps.length, cx, H * .9, W * .2, s);
+      const order = pts.map((p, i) => i).sort((a, b) => pts[a].row - pts[b].row || pts[a].x - pts[b].x);
+      const list = interleave(E(), J());
+      S.build = order.map((pi, i) => ({ p: list[i], pt: pts[pi] }));
+      const idxOf = new Map(order.map((pi, i) => [pi, i]));
+      S.pairs = pairsWithin(pts, s * 1.15).map(([a, b]) => [S.build[idxOf.get(a)], S.build[idxOf.get(b)]]);
+    }
+  },
+  upd(l) {
+    if (l === 0) {
+      if (lt < 1.6) return;
+      const cut = S.rows - Math.floor((lt - 1.6) * 2.5);
+      for (const p of S.tower) if (!p.drop && p.row >= cut) {
+        p.drop = true; p.tx = null; p.tk = 0; p.gy = .5; p.aT = .55;
+        releaseOf(p, .04);
+      }
+      return;
+    }
+    for (const b of S.build) {
+      const on = lt > .5 + b.pt.row * .35;
+      b.on = on;
+      b.p.gy = 0; b.p.tk = .03; b.p.aT = 1;
+      if (on) { b.p.tx = b.pt.x; b.p.ty = b.pt.y; }
+      else { b.p.tx = b.pt.x; b.p.ty = S.floor; }
+    }
+    for (const [a, b] of S.pairs) if (a.on && b.on) want(a.p, b.p, { k: .1 });
+  }
+};
+
+// 13 — Cierre: la red construida respira
+SC[12] = {
+  set() {
+    Object.assign(P, { noise: .1, drag: .9, trail: .2 });
+    releaseAll(.02);
+    const cx = W * .67, cy = H * .5;
+    const own = assign(ps, phyllo(ps.length, cx, cy, M * .4, 1.25), .01);
+    own.forEach(p => { p.bx = p.tx - cx; p.by = p.ty - cy; p.aT = .85; });
+    knn(ps, 2, { k: .03 });
+    S.c = [cx, cy];
+  },
+  upd() {
+    const [cx, cy] = S.c, f = 1 + .04 * Math.sin(st * .8);
+    for (const p of ps) { p.tx = cx + p.bx * f; p.ty = cy + p.by * f; }
+  }
+};
+
+// =====================================================================
+//  FÍSICA
+// =====================================================================
+function step() {
+  for (const [k, L] of links) {
+    const ds = L.sT - L.s;
+    L.s += Math.abs(ds) < L.rate ? ds : Math.sign(ds) * L.rate;
+    if (L.sT === 0 && L.s <= 0) { links.delete(k); continue; }
+    const a = L.a, b = L.b;
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || .001;
+    const ux = dx / d, uy = dy / d;
+    const rv = (b.vx - a.vx) * ux + (b.vy - a.vy) * uy;
+    const f = L.k * L.s * (d - L.rest) + .04 * L.s * rv;   // Hooke + amortiguación
+    a.vx += ux * f / a.m; a.vy += uy * f / a.m;
+    b.vx -= ux * f / b.m; b.vy -= uy * f / b.m;
+    L.d = d;
+    // El brillo (impulso) viaja por los vínculos fuertes
+    if (L.s > .3) {
+      if (a.g > b.g + .02) b.ng = Math.max(b.ng, b.g + (a.g - b.g) * .06 * L.s);
+      else if (b.g > a.g + .02) a.ng = Math.max(a.ng, a.g + (b.g - a.g) * .06 * L.s);
+    }
+  }
+  // Repulsión de corto alcance: nadie ocupa el lugar de otro
+  const R = 16 * Ms, R2 = R * R;
+  for (let i = 0; i < ps.length; i++) {
+    const a = ps[i];
+    for (let j = i + 1; j < ps.length; j++) {
+      const b = ps[j];
+      const dx = b.x - a.x; if (dx > R || dx < -R) continue;
+      const dy = b.y - a.y; if (dy > R || dy < -R) continue;
+      const d2 = dx * dx + dy * dy; if (d2 > R2 || d2 < 1e-4) continue;
+      const d = Math.sqrt(d2), f = (R - d) / R * .35;
+      a.vx -= dx / d * f / a.m; a.vy -= dy / d * f / a.m;
+      b.vx += dx / d * f / b.m; b.vy += dy / d * f / b.m;
+    }
+  }
+  const cap = 28 * Ms;
+  for (const p of ps) {
+    if (p.tx != null) { p.vx += (p.tx - p.x) * p.tk; p.vy += (p.ty - p.y) * p.tk; }
+    else {
+      if (p.x < -30) p.vx += .4; if (p.x > W + 30) p.vx -= .4;
+      if (p.y < -30) p.vy += .4; if (p.y > H + 30) p.vy -= .4;
+    }
+    if (P.noise) {
+      const an = p.ph + Math.sin(t * .31 + p.id * .7) * 2.2 + t * .25;
+      p.vx += Math.cos(an) * P.noise * .5 * Ms / p.m;
+      p.vy += Math.sin(an) * P.noise * .5 * Ms / p.m;
+    }
+    if (p.gy) p.vy += p.gy * Ms;
+    p.vx *= P.drag; p.vy *= P.drag;
+    const sp = Math.hypot(p.vx, p.vy);
+    if (sp > cap) { p.vx *= cap / sp; p.vy *= cap / sp; }
+    p.x += p.vx; p.y += p.vy;
+    if (p.gy && p.y > S.floor) { p.y = S.floor; p.vy *= -.25; p.vx *= .85; }
+    p.a += (p.aT - p.a) * .04;
+    p.rs += (p.rsT - p.rs) * .05;
+    p.g = Math.max(p.g * .975, p.ng); p.ng = 0;
+  }
+}
+
+// =====================================================================
+//  DIBUJO
+// =====================================================================
+function draw() {
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = `rgba(7,8,12,${P.trail})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (const L of links.values()) {
+    if (L.s < .02) continue;
+    const a = L.a, b = L.b;
+    const tension = L.rest > 0 ? Math.abs((L.d || L.rest) - L.rest) / L.rest : 0;
+    const al = Math.min(1, .2 + .45 * L.s + Math.min(.35, tension * .8) + Math.max(a.g, b.g) * .6) * L.s * Math.min(a.a, b.a);
+    ctx.lineWidth = (.7 + L.s * .8 + Math.min(1.6, tension * 3)) * Ms;
+    if (L.kind === 'm') {
+      const gr = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+      gr.addColorStop(0, `rgba(${a.gen ? CJ : CE},${al})`);
+      gr.addColorStop(1, `rgba(${b.gen ? CJ : CE},${al})`);
+      ctx.strokeStyle = gr;
+    } else ctx.strokeStyle = `rgba(${L.kind === 'e' ? CE : CJ},${al})`;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+  for (const p of ps) {
+    const c = p.gen ? CJ : CE;
+    const r = p.r0 * Ms * p.rs * (1 + p.g * .9);
+    ctx.fillStyle = `rgba(${c},${(.07 + p.g * .25) * p.a})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r * (3.2 + p.g * 3), 0, 6.283); ctx.fill();
+    ctx.fillStyle = `rgba(${c},${p.a})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.283); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+// =====================================================================
+//  PRESENTACIÓN: navegación, textos, HUD
+// =====================================================================
+const $ = id => document.getElementById(id);
+const T = () => window.TEXTOS[lang];
+const nPasos = i => T().slides[i].pasos.length;
+
+function fmt(s) {
+  const esc = s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return esc.replace(/\{([ej]):(.*?)\}/g, '<span class="$1">$2</span>');
+}
+
+function etiquetas(pos) {
+  const cont = $('etiquetas'), txt = T().slides[si].etiquetas || [];
+  cont.innerHTML = pos.map(([x, y], i) => `<div class="etiqueta" style="left:${x}px;top:${y}px">${txt[i] || ''}</div>`).join('');
+  requestAnimationFrame(() => requestAnimationFrame(() => cont.querySelectorAll('.etiqueta').forEach(e => e.classList.add('on'))));
+}
+
+function renderTexto() {
+  const sl = T().slides[si], meta = SLIDES[si], el = $('texto');
+  el.className = meta.pos;
+  let html = '';
+  if (sl.qr) {
+    html += '<div id="qr">' + sl.qr.map((q, i) =>
+      `<figure><img src="assets/qr-${i ? 'redes' : 'memorias'}.png" alt="" onerror="this.parentNode.remove()"><figcaption>${q}</figcaption></figure>`).join('') + '</div>';
+  }
+  sl.pasos.forEach((ls, k) => ls.forEach(s => { html += `<span class="linea" data-k="${k}">${fmt(s)}</span>`; }));
+  if (sl.sub) html += `<span class="linea sub" data-k="0">${fmt(sl.sub)}</span>`;
+  el.innerHTML = html;
+  requestAnimationFrame(() => requestAnimationFrame(actualizarTexto));
+}
+function actualizarTexto() {
+  $('texto').querySelectorAll('.linea').forEach(e => e.classList.toggle('on', +e.dataset.k <= li));
+}
+
+function hud() {
+  const n = SLIDES.length;
+  $('hud').textContent = `${String(si + 1).padStart(2, '0')} / ${n}`;
+  let tot = 0, cur = 0;
+  for (let i = 0; i < n; i++) { if (i < si) cur += nPasos(i); tot += nPasos(i); }
+  $('barra').style.width = ((cur + li + 1) / tot * 100) + '%';
+}
+
+function foto() {
+  const f = SLIDES[si].foto, img = $('foto');
+  img.classList.remove('on');
+  if (!f) return;
+  img.onload = () => img.classList.add('on');
+  img.onerror = () => img.classList.remove('on');
+  img.src = f;
+}
+
+function entrar(paso) {
+  li = paso; st = 0; lt = 0;
+  for (const k in S) delete S[k];
+  $('etiquetas').innerHTML = '';
+  reset();
+  SC[si].set(li, true);
+  $('velo').classList.toggle('off', SLIDES[si].pos === 'titulo');
+  renderTexto(); hud(); foto();
+}
+function avanzarPaso(n) {
+  li = n; lt = 0;
+  reset();
+  SC[si].set(li, false);
+  actualizarTexto(); hud();
+}
+function next() {
+  if (li < nPasos(si) - 1) avanzarPaso(li + 1);
+  else if (si < SLIDES.length - 1) { si++; entrar(0); }
+}
+function prev() {
+  if (li > 0) avanzarPaso(li - 1);
+  else if (si > 0) { si--; entrar(nPasos(si) - 1); }
+}
+
+// ---------- Panel de relaciones (para explicar el sistema en vivo) ----------
+function debug() {
+  const el = $('debug');
+  if (!el.classList.contains('on')) return;
+  const meta = SLIDES[si];
+  const rel = Array.isArray(meta.rel) ? meta.rel[Math.min(li, meta.rel.length - 1)] : meta.rel;
+  const c = { e: 0, j: 0, m: 0 }; let ten = 0, n = 0;
+  for (const L of links.values()) if (L.s > .1) { c[L.kind]++; ten += Math.abs((L.d - L.rest) / (L.rest || 1)); n++; }
+  el.innerHTML = `<h3>${String(si + 1).padStart(2, '0')} · ${meta.nombre} · paso ${li + 1}/${nPasos(si)}</h3>
+    <div class="rel">${rel}</div>
+    <div class="fila"><span><span class="dot" style="background:var(--exp)"></span>vínculos experiencia</span><b>${c.e}</b></div>
+    <div class="fila"><span><span class="dot" style="background:var(--jov)"></span>vínculos nuevas generaciones</span><b>${c.j}</b></div>
+    <div class="fila"><span><span class="dot" style="background:linear-gradient(90deg,var(--exp),var(--jov))"></span>vínculos entre generaciones</span><b>${c.m}</b></div>
+    <div class="fila"><span>tensión media</span><b>${n ? (ten / n * 100).toFixed(1) : '0.0'}%</b></div>
+    <div class="fila"><span>ruido · fricción</span><b>${P.noise.toFixed(2)} · ${P.drag.toFixed(2)}</b></div>`;
+}
+
+// ---------- Entrada ----------
+addEventListener('keydown', e => {
+  const k = e.key;
+  if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); next(); }
+  else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); prev(); }
+  else if (k === 'Home') { si = 0; entrar(0); }
+  else if (k === 'End') { si = SLIDES.length - 1; entrar(0); }
+  else if (k === 'f' || k === 'F') {
+    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.();
+  }
+  else if (k === 'l' || k === 'L') {
+    lang = lang === 'pt' ? 'es' : 'pt';
+    try { localStorage.setItem('relevo-lang', lang); } catch (_) {}
+    document.documentElement.lang = lang;
+    renderTexto();
+    if (T().slides[si].etiquetas) { $('etiquetas').querySelectorAll('.etiqueta').forEach((e, i) => e.textContent = T().slides[si].etiquetas[i]); }
+  }
+  else if (k === 'd' || k === 'D') $('debug').classList.toggle('on');
+  else if (k === 'h' || k === 'H' || k === '?') $('ayuda').classList.toggle('on');
+});
+addEventListener('click', e => { if (e.shiftKey) prev(); else next(); });
+addEventListener('contextmenu', e => { e.preventDefault(); prev(); });
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight; M = Math.min(W, H); Ms = M / 1000;
+  cv.width = W * DPR; cv.height = H * DPR;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#07080c'; ctx.fillRect(0, 0, W, H);
+}
+let rt;
+addEventListener('resize', () => {
+  resize();
+  clearTimeout(rt);
+  rt = setTimeout(() => { const keep = lt; entrar(li); lt = keep; }, 150);
+});
+
+// ---------- Arranque ----------
+(function init() {
+  const q = new URLSearchParams(location.search).get('lang');
+  let saved = null;
+  try { saved = localStorage.getItem('relevo-lang'); } catch (_) {}
+  lang = window.TEXTOS[q] ? q : (window.TEXTOS[saved] ? saved : 'pt');
+  document.documentElement.lang = lang;
+  resize();
+  crear();
+  entrar(0);
+  $('pista').textContent = T().ui.inicio;
+  setTimeout(() => $('pista').style.opacity = 0, 5000);
+  // Paso fijo de 60 Hz: el ritmo no depende de los FPS de la pantalla
+  const DT = 1 / 60;
+  let last = performance.now(), acc = 0, dbgT = 0;
+  (function loop(now) {
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    acc += dt;
+    while (acc >= DT) {
+      acc -= DT;
+      t += DT; st += DT; lt += DT;
+      SC[si].upd(li);
+      step();
+    }
+    draw();
+    if ((dbgT += dt) > .25) { dbgT = 0; debug(); }
+    requestAnimationFrame(loop);
+  })(last);
+})();
+</script>
+</body>
+</html>
