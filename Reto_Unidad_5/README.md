@@ -115,7 +115,7 @@ Abre `DEMO/index.html` en Chrome o Edge (funciona sin conexión).
 **Mini tutorial de cambios (lo pidió el cliente):**
 - *Cambiar un texto:* edita `DEMO/textos.js`. Cada slide tiene `pasos`, y cada paso es una lista de líneas. `{e:palabra}` pinta en rojo y `{j:palabra}` en azul. Las etiquetas de los QR están en `qr`.
 - *Agregar un idioma:* copia el bloque `es` en `textos.js`, cámbiale el nombre (p. ej. `en`) y abre `index.html?lang=en`.
-- *Fotos, QR y logo:* ponlos en `DEMO/assets/` con los nombres de [`assets/LEEME.md`](DEMO/assets/LEEME.md).
+- *Fotos, QR y logos:* están en `DEMO/assets/`. Para cambiar qué foto va en cada slide, edita la propiedad `foto` en la lista `SLIDES` de `index.html`; si un archivo no existe, simplemente no aparece.
 
 # Autoevaluación
 
