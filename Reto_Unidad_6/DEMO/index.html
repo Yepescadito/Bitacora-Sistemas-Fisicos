@@ -460,12 +460,6 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
   ctx.globalCompositeOperation = 'source-over';
-  // cabeza de cada boid: un punto, para que se vea quién está pintando
-  ctx.fillStyle = tinta();
-  ctx.beginPath();
-  const r = 1.4 + P.energia + 1.5 * golpe;
-  for (let i = 0; i < K.nB; i++) { ctx.moveTo(bx[i] + r, by[i]); ctx.arc(bx[i], by[i], r, 0, TAU); }
-  ctx.fill();
   if (verPercep) drawPercepcion();
 }
 const b1 = document.createElement('canvas'), b1ctx = b1.getContext('2d');
@@ -503,6 +497,7 @@ function medirNivel() {
 const pc = document.createElement('canvas'), pctx = pc.getContext('2d');
 const pbx = new Float32Array(K.nB), pby = new Float32Array(K.nB);
 let nPint = 0;
+const GROSOR = [2, 3.5, 6]; // px
 const tinta = () => P.invert ? '#a6f000' : '#000';
 function resetPintura() {
   pc.width = W * DPR; pc.height = H * DPR;
@@ -530,15 +525,20 @@ function pintar() {
   }
   pctx.globalCompositeOperation = 'source-over';
   pctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  pctx.strokeStyle = tinta(); pctx.globalAlpha = 0.55;
-  pctx.lineWidth = 1.1 + P.energia * 1.6 + golpe * 2; pctx.lineCap = 'round';
-  pctx.beginPath();
-  for (let i = 0; i < K.nB; i++) {
-    const dx = bx[i] - pbx[i], dy = by[i] - pby[i];
-    if (dx * dx + dy * dy < 40000) { pctx.moveTo(pbx[i], pby[i]); pctx.lineTo(bx[i], by[i]); } // no unir si cruzó un borde
-    pbx[i] = bx[i]; pby[i] = by[i];
+  // Trazos de tres grosores (cada boid tiene el suyo) y semitransparentes: se leen como pinceladas.
+  // Extremos planos ('butt'): con extremos redondos, cada cuadro se solapa con el anterior y el trazo queda punteado.
+  pctx.strokeStyle = tinta(); pctx.globalAlpha = 0.32; pctx.lineCap = 'butt';
+  const extra = P.energia * 2 + golpe * 3;
+  for (let g = 0; g < GROSOR.length; g++) {
+    pctx.lineWidth = GROSOR[g] + extra;
+    pctx.beginPath();
+    for (let i = g; i < K.nB; i += GROSOR.length) {
+      const dx = bx[i] - pbx[i], dy = by[i] - pby[i];
+      if (dx * dx + dy * dy < 40000) { pctx.moveTo(pbx[i], pby[i]); pctx.lineTo(bx[i], by[i]); } // no unir si cruzó un borde
+    }
+    pctx.stroke();
   }
-  pctx.stroke();
+  pbx.set(bx); pby.set(by);
   pctx.globalAlpha = 1;
 }
 

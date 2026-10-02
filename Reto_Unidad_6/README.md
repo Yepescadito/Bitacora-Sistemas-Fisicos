@@ -35,7 +35,7 @@ La estética es la de *brat*: **verde lima y negro**, tipografía Arial en minú
 La imagen tiene dos capas con papeles distintos:
 
 1. **El suelo:** la red del physarum, atenuada (nunca pasa del 55 % de tinta). Es lenta y orgánica y queda de fondo.
-2. **La pintura:** la bandada no se dibuja como figuras. Cada boid deja un trazo fino desde donde estaba hasta donde está, y los trazos **se acumulan**. Lo que se ve es el recorrido de la bandada: hilos, pinceladas, el anillo del 360 hecho de cientos de líneas. Cada boid se ve solo como un punto en la punta de su trazo.
+2. **La pintura:** la bandada no se dibuja como figuras. Cada boid deja un trazo fino desde donde estaba hasta donde está, y los trazos **se acumulan**. Lo que se ve es el recorrido de la bandada: hilos, pinceladas, el anillo del 360 hecho de cientos de líneas. Cada boid pinta con uno de tres grosores, como pinceles distintos.
 
 La idea de que el recorrido acumulado se vuelva la imagen la tomé del **trabajo de Sofía** ("The Seed" de AURORA), donde las raíces se dibujan porque el fondo no se borra. La diferencia es que en su obra la amplitud del audio controla la velocidad, el brillo y el campo. Aquí lo que se pinta depende de las reglas de los agentes y de mis intervenciones; el audio solo modula el resplandor (ver "Respiración y golpe"). Además, la pintura no es permanente. Se olvida al mismo ritmo que el rastro del physarum, y los dos se controlan juntos con ↑/↓, que funciona como la **memoria** del sistema. El clic derecho también borra la pintura alrededor del foco.
 
@@ -163,6 +163,7 @@ El score está en `DEMO/score.js` y se ve en el panel (D) junto con una línea d
 - **Prueba 10:** todavía no me convencía visualmente y quería que se sintiera más como un visualizer. Dirección: brat, pero más intenso. Agregué un resplandor: la pintura reducida a 1/4 y a 1/12, ampliada otra vez y sumada encima. En la paleta oscura se suma luz (halos lima); en la brat se multiplica, y la tinta negra se difumina como en la portada del disco. Atenué más el physarum (55 % → 35 %) para que se viera menos "red".
 - **Prueba 11:** el golpe (J) al principio empujaba a todos los boids sin importar la distancia, y con golpes en cada tiempo la bandada terminaba pegada a los bordes (mediana a 538 px del foco). Ahora el golpe solo lo sienten los boids dentro del alcance del foco, con más fuerza cuanto más cerca, y dura menos. Con 8 golpes seguidos el anillo aguanta (mediana a 273 px; el anillo está a ~216). Bajé el destello blanco de la paleta brat (0.3 → 0.12) porque lavaba toda la imagen.
 - **Prueba 12:** la respiración se saturaba: la canción está muy masterizada y con la escala inicial casi siempre daba 1. Medí el RMS de cada parte y recalibré. Ahora da ≈ 0.16 en el intro y ≈ 0.6 con el beat. Costo a 1080p con el resplandor: ~9 ms por cuadro (6.4 simulación + 2.5 dibujo).
+- **Prueba 13:** los trazos finos con un punto en la punta parecían espermatozoides. Quité el punto y cada boid pinta ahora con uno de tres grosores (2, 3.5 y 6 px), semitransparente (32 %). Con extremos redondos, cada cuadro se solapaba con el anterior y el trazo quedaba punteado; con extremos planos queda continuo. Resultado: mechones de tinta en la paleta brat y vetas de luz en la oscura.
 
 # Actividades 01 y 02: análisis de los referentes
 
