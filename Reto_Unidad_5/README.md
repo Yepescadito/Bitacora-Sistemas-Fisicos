@@ -54,11 +54,6 @@ __2. Variables__
 - Velocidad de crecimiento de los vínculos (confianza).
 - Forma objetivo, ruido, fricción y estela.
 
-# Referentes
-
-- **Memo Akten, *Forms*:** de aquí tomé la idea de que el movimiento deja rastro y construye forma; por eso la estela es un parámetro de cada escena. No copié su estética.
-- **ForumTEDTALK:** me mostró que cada frase debe traducirse en un cambio de **comportamiento** y no en una ilustración literal. Por eso no hay íconos ni dibujos de personas.
-
 Nota: 4.0
 
 | Criterio | Puntos | Valoración |
