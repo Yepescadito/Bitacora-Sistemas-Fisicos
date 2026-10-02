@@ -39,53 +39,6 @@ La imagen tiene dos capas con papeles distintos:
 
 La idea de que el recorrido acumulado se vuelva la imagen la tomé del **trabajo de Sofía** ("The Seed" de AURORA), donde las raíces se dibujan porque el fondo no se borra. La diferencia es que en su obra la amplitud del audio controla la velocidad, el brillo y el campo. Aquí lo que se pinta depende de las reglas de los agentes y de mis intervenciones; el audio solo modula el resplandor (ver "Respiración y golpe"). Además, la pintura no es permanente. Se olvida al mismo ritmo que el rastro del physarum, y los dos se controlan juntos con ↑/↓, que funciona como la **memoria** del sistema. El clic derecho también borra la pintura alrededor del foco.
 
-# Qué percibe cada agente y cómo decide
-
-### Boid (bandada)
-
-**Percibe** (con límites):
-- A sus vecinos, **solo** dentro de un radio `R` (70 px por defecto, ajustable en vivo con Z/X) y **solo hacia adelante**: un cono de visión de ~254° (no ve lo que tiene detrás).
-- Como máximo a **24 vecinos** (atención limitada).
-- La dirección del flow field **en el punto donde está** (no ve el campo completo).
-- El foco, **solo si está a menos de 0.42 × el lado menor** de la pantalla. Los que están lejos no se enteran: se enteran por sus vecinos (alineación).
-
-**Calcula** su acción con la regla de Reynolds: `steer = velocidad_deseada − velocidad`, limitada a una fuerza máxima. Suma:
-
-| Comportamiento | Velocidad deseada | Peso |
-|---|---|---|
-| Separación | alejarse de los vecinos a menos de 0.42·R (ponderado por 1/d²) | 2.4 |
-| Alineación | el promedio de las velocidades de los vecinos | 1.0 |
-| Cohesión | ir al centro de los vecinos | 0.8 |
-| Flow field | la dirección del campo donde está | 1.6 × fuerza del campo |
-| Arrive (clic izq.) | ir al foco, frenando a la mitad al acercarse; a menos de 90 px ya llegó | 1.6 |
-| Flee (clic der.) | alejarse del foco | 3.0 |
-| Wander | un punto que se pasea por un círculo delante de él | 0.3 |
-
-**Actúa:** suma las fuerzas a su velocidad, la limita a la velocidad máxima y avanza. Además **deja un poco de rastro** en el mapa del physarum.
-
-### Agente Physarum (red)
-
-**Percibe:** solo tres puntos del mapa de rastro: adelante, adelante-izquierda y adelante-derecha, a una distancia `SD` (9 celdas por defecto, ajustable con C/V) y separados 0.6 rad. No percibe a otros agentes, solo lo que dejaron.
-
-**Calcula** (Jones, 2010):
-- si el sensor del centro es el mayor → sigue derecho;
-- si el del centro es el menor → gira al azar a un lado;
-- si no → gira 0.45 rad hacia el lado con más rastro;
-- si hay campo, además **inclina** su rumbo hacia la dirección del campo (10 % × fuerza). El campo no lo reemplaza: lo sesga.
-
-**Actúa:** avanza y deposita rastro. El entorno (el mapa) se difunde y se evapora en cada paso.
-
-### El entorno (mapa de rastro)
-
-Es lo que conecta todo. Lo escriben el physarum, los boids, el foco y el texto "360"; solo lo lee el physarum. Cada paso: difusión parcial (mezcla 50 % con el promedio 3×3), evaporación (memoria, ajustable con ↑/↓) y un **tope** por celda.
-
-# Qué aporta la combinación
-
-- **Flocking + Physarum:** la bandada es rápida y nerviosa; el physarum es lento y tiene memoria. Como los boids dejan rastro, **la red termina dibujando por dónde pasó la bandada** segundos después. La gente se mueve y la escena se acomoda detrás.
-- **Flow field + los dos:** el mismo campo afecta distinto a cada uno. Los boids lo **siguen** (es su velocidad deseada); el physarum solo se **inclina** hacia él y sigue obedeciendo a su rastro. En la órbita 360, los boids forman un anillo nítido de inmediato y la red se va curvando poco a poco.
-- **Foco + entorno:** el foco no mueve a nadie directamente. Con clic izquierdo **cambia lo que perciben** los boids (un objetivo) y **cambia el entorno** (deposita rastro, el physarum llega después). Con clic derecho los espanta y borra la red.
-- **Texto "360":** no es un dibujo encima. Es rastro escrito en el entorno; los agentes lo perciben y lo recorren, lo deforman y se lo comen.
-
 # Controles
 
 Agrupados en cuatro intenciones:
@@ -109,29 +62,6 @@ Los controles de "sostener" cambian **gradualmente** mientras se mantienen: el g
 
 Para ensayar: O (o arrastrar) carga el audio, P reproduce/pausa, ← / → mueven 5 s, M marca el tiempo actual, R reinicia el physarum en un anillo, G muestra lo que percibe cada agente, D abre el panel de parámetros y el score, F pantalla completa, H ayuda.
 
-### Respiración y golpe: qué hace el audio y qué hago yo
-
-Quería que se sintiera como un visualizer, al estilo del trabajo de Sofía, pero sin que el audio condujera el sistema, que es lo que el encargo no permite. La división es estricta:
-
-| | Quién lo controla | Qué cambia | Qué **no** cambia |
-|---|---|---|---|
-| **Respiración** | el volumen de la canción (RMS, suavizado: sube rápido y baja despacio) | solo la intensidad del resplandor (el halo borroso de la pintura) | nada de los agentes: ni lo que perciben, ni sus reglas, ni el entorno |
-| **Golpe** (J) | yo, al ritmo, cuando decido | un flee instantáneo desde el foco con fuerza máxima muy alta, solo para los boids dentro del alcance del foco; trazos más gruesos y un destello | — |
-
-La respiración hace que la imagen "viva" con la canción: tenue en el intro, intensa cuando entra el beat. Pero todo lo que se mueve, se organiza o cambia de forma sigue siendo decisión mía o emergencia de las reglas. Si apago el audio, el sistema se comporta exactamente igual; solo pierde el brillo. Calibré el rango con la canción: intro ≈ 0.16 de RMS, quiebre ≈ 0.21, con beat ≈ 0.43–0.49, picos ≈ 0.56.
-
-### Predicciones verificables (para la sustentación)
-
-| Si hago… | Predigo… | Lo verifiqué así |
-|---|---|---|
-| Z (percepción baja) | la bandada se rompe en muchos grupos pequeños | con G se ve el cono más pequeño y menos vecinos conectados |
-| X (percepción alta) | una sola bandada grande y alineada | — |
-| C (sensores cortos, ~4) | red fina, celdas pequeñas | captura con sd = 4 vs sd = 25 (prueba 6) |
-| V (sensores largos, ~25) | venas gruesas, celdas grandes | ídem |
-| 2 con fuerza alta | anillo alrededor del foco | radio medido 217 px para un radio objetivo de 230 px; 100 % del movimiento tangencial (prueba 3) |
-| ↓ (persistencia baja) | la red se desvanece y se fragmenta | — |
-| clic derecho | agujero en la red, la bandada se aleja | distancia media al foco: 91 px → 301 px en 2 s (prueba 4) |
-
 # Score visual
 
 El score está en `DEMO/score.js` y se ve en el panel (D) junto con una línea de tiempo. **Es una guía**, no una secuencia: el instrumento no cambia nada solo.
@@ -149,44 +79,6 @@ El score está en `DEMO/score.js` y se ve en el panel (D) junto con una línea d
 
 **Cómo saqué los tiempos:** medí la energía del mp3 cada 0.5 s, separando la total de la de los graves, para escribir el score. El instrumento no usa esto en vivo. El mapa muestra 5 s de silencio, un intro sin bajo hasta 0:13 y un pulso cada ~2 s (≈120 BPM, frases de 16 s). Los cambios se ven en bajones de energía en 0:45, 0:59–1:01 y 1:20, el bajo desaparece entre 1:40 y 1:49 y la música se apaga en 2:14. Los límites de la estructura son confiables. Los nombres "verso" y "coro" hay que confirmarlos escuchando; si algo se siente corrido, se corrige con M.
 
-# Registro de pruebas
-
-- **Prueba 1:** el physarum arrancaba en un anillo y se quedaba pegado a él: el anillo inicial tenía tanto rastro que ningún agente se salía. Ahora arranca disperso por toda la pantalla y el anillo queda como gesto (tecla R).
-- **Prueba 2:** con 26 000 agentes el physarum tardaba 8.2 ms por paso (sin margen para 1080p). Medí y `Math.cos/sin` era más de la mitad del costo; con tablas de seno/coseno bajó a 2.1 ms. A 1920×1080 (69 000 agentes + 420 boids) el cuadro completo cuesta ~7.3 ms y corre a la tasa del monitor.
-- **Prueba 3:** la órbita era una espiral hacia el centro y en 10 s toda la bandada terminaba en un punto (distancia media al foco: 28 px). La cambié por un campo tangente a un círculo de radio 0.3 × el lado menor, que se inclina hacia el círculo desde adentro y desde afuera. Medido: distancia media 217 px (objetivo 230) y movimiento 100 % tangencial: un anillo.
-- **Prueba 4:** al atraer, los 420 boids se aplastaban en 11 px y el costo se disparaba (todos veían a todos). Dos cambios: el arrive deja de actuar a menos de 90 px (ya llegó) y frena solo a la mitad de la velocidad, y cada boid atiende como máximo a 24 vecinos. Ahora quedan zumbando alrededor del foco (distancia media 91 px); al repeler se alejan a 301 px en 2 s.
-- **Prueba 5:** en modo libre el physarum se engrosaba en pocas bandas gruesas a los 15 s. Bajé la difusión al 50 %, el depósito de los boids (7 → 3) y abrí los sensores (0.42 → 0.6 rad), pero seguía igual. La causa era que el rastro crecía sin límite: un tubo grueso siempre le ganaba a todo lo demás. Con un tope de 8 por celda la red se mantiene ramificada después de 25 s.
-- **Prueba 6:** verifiqué que el control C/V tiene consecuencia visible: con sensores de 4 celdas la red es fina y de celdas pequeñas; con 25, venas gruesas y celdas grandes.
-- **Prueba 7:** la paleta: un tono lineal saturaba el rastro (todo verde plano). Uso `v / (v + 3)`, que con el tope de 8 queda en ~73 % de tinta y deja ver los rastros débiles tenues.
-- **Prueba 8:** no me gustaba cómo se veía: los triángulos blancos encima de la red parecían confeti y se veían genéricos. Tomé la idea del trabajo de Sofía y cambié los triángulos por trazos que se acumulan. Atenué el physarum al 55 % para que quede como suelo. Resultado: en la órbita, el anillo se ve hecho de hilos; en la paleta brat, los trazos se ven como tinta sobre papel lima.
-- **Prueba 9:** al borrar la pintura muy suavemente en cada cuadro quedaba una neblina que nunca desaparecía: con alfa de 8 bits, un borrado del 2 % ya no alcanza a restar nada cuando el trazo es tenue. Ahora, cada 16 cuadros se borra un 12 % extra y el residuo baja a casi nada. Costo a 1080p con la capa nueva: ~8.2 ms por cuadro (6.9 simulación + 1.3 dibujo).
-- **Prueba 10:** todavía no me convencía visualmente y quería que se sintiera más como un visualizer. Dirección: brat, pero más intenso. Agregué un resplandor: la pintura reducida a 1/4 y a 1/12, ampliada otra vez y sumada encima. En la paleta oscura se suma luz (halos lima); en la brat se multiplica, y la tinta negra se difumina como en la portada del disco. Atenué más el physarum (55 % → 35 %) para que se viera menos "red".
-- **Prueba 11:** el golpe (J) al principio empujaba a todos los boids sin importar la distancia, y con golpes en cada tiempo la bandada terminaba pegada a los bordes (mediana a 538 px del foco). Ahora el golpe solo lo sienten los boids dentro del alcance del foco, con más fuerza cuanto más cerca, y dura menos. Con 8 golpes seguidos el anillo aguanta (mediana a 273 px; el anillo está a ~216). Bajé el destello blanco de la paleta brat (0.3 → 0.12) porque lavaba toda la imagen.
-- **Prueba 12:** la respiración se saturaba: la canción está muy masterizada y con la escala inicial casi siempre daba 1. Medí el RMS de cada parte y recalibré. Ahora da ≈ 0.16 en el intro y ≈ 0.6 con el beat. Costo a 1080p con el resplandor: ~9 ms por cuadro (6.4 simulación + 2.5 dibujo).
-- **Prueba 13:** los trazos finos con un punto en la punta parecían espermatozoides. Quité el punto y cada boid pinta ahora con uno de tres grosores (2, 3.5 y 6 px), semitransparente (32 %). Con extremos redondos, cada cuadro se solapaba con el anterior y el trazo quedaba punteado; con extremos planos queda continuo. Resultado: mechones de tinta en la paleta brat y vetas de luz en la oscura.
-- **Prueba 14:** quería más partículas y un fondo más vivo, sin salirme del encargo. Subí la bandada de 420 a 900 boids. El physarum ahora es más visible (pasa del 35 % a ~47 % de tinta en reposo), avanza un 30 % más rápido y el campo lo arrastra casi el doble (0.10 → 0.18): al cambiar de campo, el fondo también gira o se dispersa. El fondo respira con la canción y destella con el golpe, igual que el resplandor: solo cambia el brillo, nunca el comportamiento. Problema: con 900 boids dejando rastro, todo el physarum se fue detrás de ellos y el fondo quedó negro. Bajé el rastro de cada boid (3 → 1.2): la red vuelve a ocupar todo el fondo y sus venas se curvan hacia la bandada y se conectan con ella. Costo a 1080p: ~8 ms por cuadro (7 simulación + 1 dibujo).
-
-# Actividades 01 y 02: análisis de los referentes
-
-| Referente | Qué percibe el agente | Cómo calcula su movimiento | Qué podría intervenir en vivo |
-|---|---|---|---|
-| Nature of Code, cap. 5 | su posición, su velocidad y un objetivo | `steer = deseada − velocidad`, limitada por fuerza máxima | velocidad y fuerza máximas, el objetivo |
-| Reynolds, *Steering Behaviors* | objetivo, obstáculos, vecinos | combinación ponderada de comportamientos simples | los pesos de cada comportamiento |
-| Tyler Hobbs, *Flow Fields* | el ángulo del campo en su posición | avanza en esa dirección | cómo se construye el campo (ruido, distorsión) |
-| Trabajo de Sofía ("The Seed", AURORA) | solo el ángulo del campo de ruido en su posición; no percibe a otras raíces | el campo es su aceleración; nacen en el centro y se encogen hasta morir; el fondo no se borra y el recorrido se vuelve la imagen | en su versión, nada: la amplitud del audio controla la velocidad, el brillo y el cambio del campo (justo lo que este encargo no permite). Tomé de ella la acumulación del recorrido |
-| Three.js *Birds* | vecinos dentro de un radio | separación, alineación y cohesión | radio de percepción, pesos |
-| Bleuje, *Interactive Physarum* / Patt Vira | el rastro en tres sensores | girar hacia el sensor con más rastro, depositar | ángulo y distancia de los sensores, evaporación, depósitos externos |
-
-En flow fields hay dos cosas distintas: el **campo** (un mapa de ángulos) y la **regla** con la que el agente lo consulta. En mi instrumento las dos se ven: el mismo campo lo sigue la bandada como velocidad deseada y el physarum solo se inclina hacia él.
-
-# Cómo usarlo
-
-Online: **https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_6/DEMO/** o abriendo `DEMO/index.html` en Chrome/Edge. En la portada, "cargar canción" (o arrastrar el mp3, o presionar O); F para pantalla completa, P para reproducir.
-
-La canción queda guardada en ese navegador (IndexedDB): al volver a abrir el link ya está cargada, sin subirla a ningún lado. No se publica en el repositorio porque tiene derechos de autor y el repositorio es público.
-
-Para no cargarlo cada vez: guardar la canción como `DEMO/audio/360.mp3` y abrir `DEMO/index.html` desde el computador; se carga sola. Esa carpeta está en `.gitignore`: la canción tiene derechos de autor y no se sube al repositorio público.
-
 # Autoevaluación
 
 *(Por completar antes de la sesión 4: cada criterio vale 25 puntos.)*
@@ -199,12 +91,3 @@ Para no cargarlo cada vez: guardar la canción como `DEMO/audio/360.mp3` y abrir
 | Interpretación humana: mi score y mis controles permiten conducir el sistema en vivo y responder a su comportamiento. | 25 | |
 | **Total** | **100** | |
 
-## Sustentación
-
-1. *__Cumplimiento del encargo__*
-
-2. *__Comprensión y verificación__*
-
-3. *__Diseño e intención__*
-
-4. *__Interpretación humana__*
