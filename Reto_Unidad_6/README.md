@@ -23,7 +23,7 @@ Diseñar y desarrollar un instrumento visual para la Web e interpretar en tiempo
 
 | Elemento | Qué es en la canción | Algoritmo |
 |---|---|---|
-| **Bandada** (420 agentes que pintan) | La gente que la sigue y la imita: rápida, se contagia del movimiento de sus vecinos. Su recorrido queda pintado | Flocking + steering (seek/arrive, flee, wander, flow field following) |
+| **Bandada** (900 agentes que pintan) | La gente que la sigue y la imita: rápida, se contagia del movimiento de sus vecinos. Su recorrido queda pintado | Flocking + steering (seek/arrive, flee, wander, flow field following) |
 | **Red** (30 000–70 000 agentes) | La escena, la "influencia": algo lento que se ramifica y conecta todo | Physarum (Jones, 2010) |
 | **Foco** (mouse) | Ella: la referencia | Objetivo de seek/arrive o de flee; deposita o borra rastro |
 | **Campo** (1, 2, 3) | El clima del momento: deriva, el giro de 360°, el estallido | Flow field |
@@ -164,6 +164,7 @@ El score está en `DEMO/score.js` y se ve en el panel (D) junto con una línea d
 - **Prueba 11:** el golpe (J) al principio empujaba a todos los boids sin importar la distancia, y con golpes en cada tiempo la bandada terminaba pegada a los bordes (mediana a 538 px del foco). Ahora el golpe solo lo sienten los boids dentro del alcance del foco, con más fuerza cuanto más cerca, y dura menos. Con 8 golpes seguidos el anillo aguanta (mediana a 273 px; el anillo está a ~216). Bajé el destello blanco de la paleta brat (0.3 → 0.12) porque lavaba toda la imagen.
 - **Prueba 12:** la respiración se saturaba: la canción está muy masterizada y con la escala inicial casi siempre daba 1. Medí el RMS de cada parte y recalibré. Ahora da ≈ 0.16 en el intro y ≈ 0.6 con el beat. Costo a 1080p con el resplandor: ~9 ms por cuadro (6.4 simulación + 2.5 dibujo).
 - **Prueba 13:** los trazos finos con un punto en la punta parecían espermatozoides. Quité el punto y cada boid pinta ahora con uno de tres grosores (2, 3.5 y 6 px), semitransparente (32 %). Con extremos redondos, cada cuadro se solapaba con el anterior y el trazo quedaba punteado; con extremos planos queda continuo. Resultado: mechones de tinta en la paleta brat y vetas de luz en la oscura.
+- **Prueba 14:** quería más partículas y un fondo más vivo, sin salirme del encargo. Subí la bandada de 420 a 900 boids. El physarum ahora es más visible (pasa del 35 % a ~47 % de tinta en reposo), avanza un 30 % más rápido y el campo lo arrastra casi el doble (0.10 → 0.18): al cambiar de campo, el fondo también gira o se dispersa. El fondo respira con la canción y destella con el golpe, igual que el resplandor: solo cambia el brillo, nunca el comportamiento. Problema: con 900 boids dejando rastro, todo el physarum se fue detrás de ellos y el fondo quedó negro. Bajé el rastro de cada boid (3 → 1.2): la red vuelve a ocupar todo el fondo y sus venas se curvan hacia la bandada y se conectan con ella. Costo a 1080p: ~8 ms por cuadro (7 simulación + 1 dibujo).
 
 # Actividades 01 y 02: análisis de los referentes
 

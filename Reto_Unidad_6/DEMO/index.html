@@ -129,12 +129,12 @@ const K = {
   sa: 0.6,         // ángulo entre sensores del physarum (rad)
   ra: 0.45,        // giro del physarum por paso (rad)
   depP: 1.0,       // depósito de cada agente physarum
-  depB: 3.0,       // depósito de cada boid
+  depB: 1.2,       // depósito de cada boid (con 900, más alto se traga toda la red)
   difu: 0.5,       // qué fracción del rastro se mezcla con sus vecinos en cada paso
   tope: 8,         // valor máximo del rastro en una celda
-  fondo: 0.35,     // intensidad máxima con que se ve la red del physarum
-  campoP: 0.10,    // qué tanto el campo reorienta al physarum (con fuerza 1)
-  nB: 420,         // boids
+  fondo: 0.75,     // intensidad máxima de la red del physarum (en reposo la red densa llega a ~47% de tinta; respirando, hasta ~70%)
+  campoP: 0.18,    // qué tanto el campo reorienta al physarum (con fuerza 1)
+  nB: 900,         // boids
   fov: -0.6,       // cos del medio ángulo de visión de un boid (~127°: no ve atrás)
   atencion: 24,    // máximo de vecinos que un boid tiene en cuenta
   focoR: 0.42,     // alcance con el que un boid percibe el foco (× lado menor)
@@ -266,7 +266,7 @@ const TN = 4096, TM = TN - 1, TI = TN / TAU;
 const COS = new Float32Array(TN), SIN = new Float32Array(TN);
 for (let i = 0; i < TN; i++) { COS[i] = Math.cos(i / TI); SIN[i] = Math.sin(i / TI); }
 function stepPhysarum() {
-  const sd = P.sd, ra = K.ra, ss = (1 + P.energia * 0.9) * (1 + impulso * 1.5), so = Math.round(K.sa * TI);
+  const sd = P.sd, ra = K.ra, ss = 1.3 * (1 + P.energia * 0.9) * (1 + impulso * 1.5), so = Math.round(K.sa * TI);
   const fw = P.campo ? P.fuerza * K.campoP : 0;
   for (let i = 0; i < NP; i++) {
     let x = px[i], y = py[i], a = pa[i];
@@ -435,7 +435,9 @@ function step() {
 function draw() {
   // tono v/(v+c): el tope (8) queda en ~73% de tinta; los rastros débiles se ven tenues
   const c = 3;
-  for (let i = 0, n = GW * GH; i < n; i++) { const v = trail[i]; buf32[i] = lut[(255 * v / (v + c)) | 0]; }
+  // el fondo respira igual que el resplandor: solo brillo (volumen) y destello (golpe), nunca comportamiento
+  const fac = 255 * Math.min(1.37, 0.95 + 0.35 * nivel + 0.5 * golpe);
+  for (let i = 0, n = GW * GH; i < n; i++) { const v = trail[i], j = (fac * v / (v + c)) | 0; buf32[i] = lut[j > 255 ? 255 : j]; }
   octx.putImageData(img, 0, 0);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.imageSmoothingEnabled = true;
