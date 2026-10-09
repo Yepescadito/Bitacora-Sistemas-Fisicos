@@ -31,8 +31,6 @@ La idea central de la charla es que **el crecimiento ocurre cuando dos generacio
 | Tensión del vínculo | Qué tanto se estira la relación respecto a su longitud natural | Mientras más estirada, más gruesa y brillante es la línea |
 | Pulso (brillo) | Impacto: algo que pasa de una partícula a otra | Viaja **solo por los vínculos**; sin vínculo no hay propagación |
 
-**Regla de diseño que seguí:** ninguna partícula se mueve sola por decoración. Todo cambio importante es un cambio de **qué vínculos existen**, **qué tan fuertes son** o **hacia dónde tira la estructura**.
-
 # Gramática visual
 
 Uso cuatro "palabras" que se repiten a lo largo de la presentación:
