@@ -10,15 +10,6 @@ https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_5/DEMO/
 En español:
 https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_5/DEMO/?lang=es
 
-# El encargo
-
-Fórum UPB necesita acompañar una charla inspiracional de 20 minutos dirigida a **jóvenes estudiantes de la industria de eventos en Brasil**. Lo que pide el cliente:
-
-- Que no tenga un tono institucional aburrido; la idea es inspirar.
-- Que esté en portugués, con los textos separados para poder cambiar de idioma.
-- Que funcione en el navegador, en pantalla completa y sin conexión.
-- Que no cambie la secuencia del guion (13 slides).
-
 # Concepto
 
 La idea central de la charla es que **el crecimiento ocurre cuando dos generaciones trabajan juntas**. Por eso el sistema tiene exactamente dos poblaciones, y todo el discurso se cuenta a través de **cómo cambian los vínculos entre ellas**.
