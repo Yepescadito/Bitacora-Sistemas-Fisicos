@@ -43,13 +43,13 @@ __2. Variables__
 - Velocidad de crecimiento de los vínculos (confianza).
 - Forma objetivo, ruido, fricción y estela.
 
-Nota: 4.0
+Nota: 4.25
 
 | Criterio | Puntos | Valoración |
 |---|:---:|:---:|
 | Cumplimiento del encargo: mi presentación interpreta el guion mediante una estructura dinámica y funciona en pantalla completa. | 25 | 25 |
 | Relaciones estructurales: puedo explicar qué relaciones existen en mi sistema, qué significan y cómo organizan sus elementos. | 25 | 20 |
 | Comportamiento y significado: puedo relacionar los cambios de movimiento, estructura, densidad o composición con una intención comunicativa. | 25 | 20 |
-| Explicación y demostración: puedo presentar la propuesta funcionando, explicar mis decisiones y demostrar cómo el sistema construye sentido. | 25 | 15 |
-| **Total** | **100** | 80 |
+| Explicación y demostración: puedo presentar la propuesta funcionando, explicar mis decisiones y demostrar cómo el sistema construye sentido. | 25 | 20 |
+| **Total** | **100** | 85 |
 
