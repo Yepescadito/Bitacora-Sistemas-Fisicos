@@ -42,7 +42,8 @@ const R = {
   alcanceMano: 0.06,    // × tamaño de letra: distancia entre sus cajas a la que se alcanzan
   rupturaVinculo: 0.65, // × tamaño de letra: si el vínculo se estira más, se rompe
   rigidezVinculo: 0.25,
-  enderezar: 0.012,     // fuerza con la que un grupo ayuda a sus miembros a ponerse de pie (× tamaño del grupo)
+  inclinacionMano: 0.6, // rad: más inclinada que esto, una letra no puede tomarse de la mano
+  enderezar: 0.003,     // fuerza con la que un grupo ayuda a sus miembros a ponerse de pie (× tamaño del grupo)
   sueno: 2.5,           // s sola y quieta para dormirse (apagarse)
   elevar: 0.000005,     // fuerza con la que el gremio sube la palabra completa
   percepcionGremio: 160,// px base con los que una letra pequeña percibe un grupo (+ 90 por miembro)
@@ -77,21 +78,26 @@ function construirParedes() {
   Composite.add(world, paredes);
 }
 
-// Cada letra es un cuerpo con la forma aproximada de su glifo.
+// Cada letra es un cuerpo hecho de sus trazos (cuerpo compuesto): la V son dos barras inclinadas,
+// la A dos barras y el travesaño, la N dos palos y la diagonal. Así chocan como la letra que se ve
+// y pueden encajar entre sí (la A dentro de la abertura de la V), en vez de ser bloques sólidos.
+function trazo(x1, y1, x2, y2, g, op) {
+  return Bodies.rectangle((x1 + x2) / 2, (y1 + y2) / 2, Math.hypot(x2 - x1, y2 - y1) + g * 0.4, g,
+    { ...op, angle: Math.atan2(y2 - y1, x2 - x1) });
+}
 function crearLetra(ch, x, y) {
   ctx.font = `700 ${F}px ${FUENTE}`;
-  const w = ctx.measureText(ch).width * 0.92, h = capH;
-  const op = { friction: 0.6, frictionAir: 0.012, restitution: 0.15, density: 0.0016 };
-  let b, v = null;
-  if (ch === 'A') v = [{ x: -w * 0.12, y: -h / 2 }, { x: w * 0.12, y: -h / 2 }, { x: w / 2, y: h / 2 }, { x: -w / 2, y: h / 2 }];
-  if (ch === 'V') v = [{ x: -w / 2, y: -h / 2 }, { x: w / 2, y: -h / 2 }, { x: w * 0.12, y: h / 2 }, { x: -w * 0.12, y: h / 2 }];
-  if (ch === 'O') b = Bodies.circle(x, y, Math.max(w, h) / 2, op);
-  else if (v) b = Bodies.fromVertices(x, y, [v], op);
-  else b = Bodies.rectangle(x, y, w, h, op);
-  // Matter pone la posición del cuerpo en el centroide del trapecio (más cerca de la base ancha);
-  // el glifo se dibuja centrado en su caja, así que guardamos ese desfase
-  const c = v ? Matter.Vertices.centre(v) : { x: 0, y: 0 };
-  b.off = { x: -c.x, y: -c.y };
+  const w = ctx.measureText(ch).width * 0.9, h = capH, g = h * 0.15; // g: grosor del trazo
+  const op = { friction: 0.6, frictionAir: 0.012, restitution: 0.1, density: 0.0016 };
+  const L = x - w / 2 + g / 2, Rr = x + w / 2 - g / 2, T = y - h / 2 + g / 2, B = y + h / 2 - g / 2;
+  let partes;
+  if (ch === 'O') partes = [Bodies.circle(x, y, (w + h) / 4, op)];
+  else if (ch === 'N') partes = [trazo(L, T, L, B, g, op), trazo(Rr, T, Rr, B, g, op), trazo(L, T, Rr, B, g, op)];
+  else if (ch === 'V') partes = [trazo(L, T, x, B, g, op), trazo(Rr, T, x, B, g, op)];
+  else if (ch === 'A') partes = [trazo(x, T, L, B, g, op), trazo(x, T, Rr, B, g, op), trazo(x - w * 0.24, y + h * 0.15, x + w * 0.24, y + h * 0.15, g * 0.8, op)];
+  const b = partes.length === 1 ? partes[0] : Body.create({ parts: partes, ...op });
+  // el cuerpo queda centrado en su centro de masa; guardamos dónde quedó el centro del glifo
+  b.off = { x: x - b.position.x, y: y - b.position.y };
   b.ch = ch; b.quieta = 0; b.dormida = 0; b.oro = 0;
   Composite.add(world, b);
   return b;
@@ -134,6 +140,7 @@ function grupos() {
 }
 const centro = (g) => { let x = 0, y = 0; g.forEach(l => { x += l.position.x; y += l.position.y; }); return { x: x / g.length, y: y / g.length }; };
 const unidas = (a, b) => vinculos.some(v => (v.a === a && v.b === b) || (v.a === b && v.b === a));
+const angNorm = a => { a %= TAU; if (a > Math.PI) a -= TAU; if (a < -Math.PI) a += TAU; return a; };
 function soltar(l) {
   vinculos = vinculos.filter(v => { if (v.a === l || v.b === l) { Composite.remove(world, v.c); return false; } return true; });
 }
@@ -149,7 +156,10 @@ function buscarVinculos() {
     if (unidas(a, b)) { contacto.delete(k); continue; }
     const A = a.bounds, B = b.bounds;
     const dx = Math.max(A.min.x - B.max.x, B.min.x - A.max.x, 0), dy = Math.max(A.min.y - B.max.y, B.min.y - A.max.y, 0);
-    if (Math.hypot(dx, dy) > alcance) { contacto.delete(k); continue; }
+    // de la mano = lado a lado: cerca, a la misma altura y las dos más o menos derechas (no apiladas ni de cabeza)
+    const derecha = l => Math.abs(angNorm(l.angle)) < R.inclinacionMano;
+    const ladoALado = Math.abs(a.position.y - b.position.y) < F * 0.45 && derecha(a) && derecha(b);
+    if (Math.hypot(dx, dy) > alcance || !ladoALado) { contacto.delete(k); continue; }
     const tc = (contacto.get(k) || 0) + 1 / 60;
     contacto.set(k, tc);
     if (tc < R.tiempoVinculo) continue;
@@ -192,8 +202,9 @@ function paso() {
   for (const l of letras) {
     const n = l.grupo.length;
     // en grupo se ayudan a estar de pie; sola no hay quien la sostenga
-    if (n > 1) {
-      let ang = l.angle % TAU; if (ang > Math.PI) ang -= TAU; if (ang < -Math.PI) ang += TAU;
+    // (no mientras lo arrastras: así se puede girar y voltear el grupo)
+    if (n > 1 && !(mc.body && l.grupo.includes(mc.body))) {
+      const ang = angNorm(l.angle);
       // aceleración angular deseada (rad/paso²): resorte hacia la vertical + amortiguación.
       // Matter aplica torque · (1/inercia) · dt², por eso se divide entre dt² (16.7 ms)² ≈ 278
       const alfa = -ang * R.enderezar * n - l.angularVelocity * 0.15;

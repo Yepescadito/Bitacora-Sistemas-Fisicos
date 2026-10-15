@@ -28,7 +28,7 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 
 | Elemento | Qué es | Modelo |
 |---|---|---|
-| **N, O, V, A** | cuatro aventureros | cuerpos rígidos con física (Matter.js); su forma de choque se aproxima al glifo: rectángulo (N), círculo (O) y trapecios (A y V) |
+| **N, O, V, A** | cuatro aventureros | cuerpos rígidos con física (Matter.js), hechos de sus trazos: la N son dos palos y la diagonal, la V dos barras inclinadas, la A dos barras y el travesaño, y la O un círculo |
 | **La O** | además, la brújula del gremio | su aguja está hecha de ocho letras V (las puntas de la rosa de los vientos) |
 | **Letras pequeñas** | los miembros del gremio | agentes con steering (wander, seek, arrive y separación), como en la Unidad 6 |
 | **Vínculo** | tomarse de la mano | restricción de distancia 0 entre un punto que las dos letras sostienen |
@@ -36,14 +36,14 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 ### Qué puede hacer la persona
 
 - **Arrastrar y lanzar** las letras.
-- **Juntarlas:** si dos letras quedan al alcance de la mano (a menos de 6 % del tamaño de letra) durante 0.35 s, se toman de la mano.
+- **Juntarlas:** si dos letras quedan lado a lado durante 0.35 s, se toman de la mano. Lado a lado quiere decir: al alcance de la mano (a menos de 6 % del tamaño de letra), a la misma altura y las dos más o menos derechas. Apiladas o de cabeza no se unen.
 - **Separarlas:** jalando fuerte (el vínculo se rompe si se estira más de 0.65 del tamaño de letra) o con **doble clic** sobre una letra, que se suelta de su grupo y da un saltito.
 - **R** reinicia y **D** abre un panel con los grupos, los vínculos, quién está dormida y si hay lectura.
 
 ### Reglas
 
 1. **Solas no se sostienen.** Una letra sola cae, queda de lado y, si pasa 2.5 s quieta, **se duerme**: se apaga a gris.
-2. **En grupo se ayudan a estar de pie.** Cada letra de un grupo recibe una aceleración que la endereza, más fuerte cuanto más grande es el grupo. Además se vuelve dorada: más dorada y más brillante cuanto más grande es el grupo.
+2. **En grupo se ayudan a estar de pie.** Cada letra de un grupo recibe una aceleración suave que la endereza, más fuerte cuanto más grande es el grupo. Mientras arrastras el grupo no actúa, así que puedes girarlo y voltearlo. Además se vuelve dorada: más dorada y más brillante cuanto más grande es el grupo.
 3. **La brújula busca a quien falta.** La aguja de la O apunta hacia la letra más cercana que no está en su grupo. Cuando están todas, apunta al norte.
 4. **El gremio va donde hay grupo.** Las letras pequeñas caminan por el suelo. Perciben a los grupos a una distancia de 160 px más 90 px por miembro: un grupo más grande se nota desde más lejos. Una letra sola no atrae a nadie. Cuando perciben un grupo, lo rodean.
 5. **Solo NOVA completo y en orden se lee.** Si las cuatro están unidas, en orden de izquierda a derecha y más o menos alineadas:
@@ -65,12 +65,18 @@ En resumen: **en NOVA nadie se aventura solo.**
 
 # Registro de pruebas
 
-- **Prueba 1:** la A y la V se dibujaban corridas respecto a su cuerpo físico. Matter coloca la posición del cuerpo en el centroide del trapecio, que está más cerca de la base ancha, y yo dibujaba el glifo centrado en su caja. Calculo el centroide de los vértices y desplazo el dibujo.
+- **Prueba 1:** la A y la V se dibujaban corridas respecto a su cuerpo físico. Matter coloca la posición del cuerpo en su centro de masa y yo dibujaba el glifo centrado en su caja. Guardo ese desfase al crear cada letra y desplazo el dibujo.
 - **Prueba 2:** al unirse, las letras empezaban a girar sin control (ángulos de miles de radianes) hasta romper el vínculo. La fuerza que endereza al grupo estaba mal escalada: Matter multiplica el torque por dt² (≈278), así que mi corrección era unas 5 veces más fuerte y se pasaba de largo en cada paso. La reescribí como aceleración angular deseada dividida entre dt², con amortiguación. Ahora el grupo se endereza sin oscilar.
 - **Prueba 3:** la V y la A casi nunca se unían. Con los choques exactos, una O, una V y una A puestas en fila apenas se tocan: la V es ancha arriba, la A ancha abajo y la O redonda. Cambié la regla de choque por una de cercanía: se toman de la mano si sus cajas están a menos de 6 % del tamaño de letra durante 0.35 s. Con NOVA en fila se forman los 3 vínculos.
 - **Prueba 4:** la lectura funcionaba, pero la palabra quedaba en el suelo y tapaba el subtítulo. Lo convertí en recompensa: cuando NOVA está completo y en orden, el gremio lo levanta hasta el 42 % de la altura de la pantalla y ahí se lee el logo completo. Medí la altura promedio de las letras: 642 → 415 px en 8 s con la primera fuerza; la dupliqué para que subiera más rápido.
 - **Prueba 5:** con las cuatro unidas pero en orden VONA, no hay lectura y el gremio completo (19/19) las rodea sin formar el subtítulo. Con NOVA, lectura sí.
 - **Prueba 6:** la aguja de la brújula (V más grandes) se salía de la O y se veía como un manchón. Ahora el vértice de cada V toca el borde interior de la O.
+- **Prueba 7 (jugándolo):** las letras chocaban raro y terminaban en un nudo: la A volteada metida en la V, todas unidas en posiciones absurdas. Había tres causas:
+  - La A y la V eran trapecios sólidos, así que no podían encajar entre sí y se montaban.
+  - Se tomaban de la mano en cualquier posición, incluso apiladas o de cabeza.
+  - La fuerza que endereza al grupo era tan fuerte que no dejaba girar las letras.
+
+  Cambios: cada letra es ahora un cuerpo compuesto por sus trazos; solo se toman de la mano lado a lado (diferencia de altura menor a 0.45 del tamaño de letra y ambas con menos de 0.6 rad de inclinación); y el enderezado es 4 veces más suave (0.012 → 0.003) y no actúa mientras arrastras. Verificación: si dejo caer la A sobre la V, la A se resbala y queda acostada sin unirse; NOVA en fila sigue formando sus 3 vínculos y el logo.
 
 ### Predicciones verificables (para la sustentación)
 
