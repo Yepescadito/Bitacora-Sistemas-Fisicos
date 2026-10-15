@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA · Gremio de Aventureros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=block" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<style>
+  html, body { margin:0; height:100%; overflow:hidden; background:#121a29; }
+  canvas { display:block; width:100vw; height:100vh; touch-action:none; cursor:grab; }
+  canvas:active { cursor:grabbing; }
+  #pista { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); color:#8d97ab;
+    font:500 14px Cinzel, serif; letter-spacing:.18em; transition:opacity 1.2s; pointer-events:none; white-space:nowrap; }
+  #panel { position:fixed; left:12px; top:12px; color:#cfd6e3; background:rgba(8,12,20,.8); font:12px/1.5 system-ui, sans-serif;
+    padding:10px 12px; border-radius:6px; display:none; min-width:220px; }
+  #panel.on { display:block; }
+  #panel b { color:#d4af37; font-weight:500; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="pista">arrastra las letras · júntalas</div>
+<div id="panel"></div>
+<script>
+(async () => {
+'use strict';
+const { Engine, Bodies, Body, Composite, Constraint, Mouse, MouseConstraint, Events, Vector } = Matter;
+const TAU = Math.PI * 2;
+const PLATA = '#cfd6e3', PLATA_OSC = '#5d6779', ORO = '#d4af37';
+const FUENTE = 'Cinzel, "Trajan Pro", Georgia, serif';
+
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const pista = document.getElementById('pista'), panel = document.getElementById('panel');
+try { await document.fonts.load(`700 100px Cinzel`); await document.fonts.load(`500 20px Cinzel`); } catch (e) {}
+
+// ---------- reglas (los números que se pueden cambiar para verificar predicciones) ----------
+const R = {
+  tiempoVinculo: 0.35,  // s que dos letras deben estar al alcance para tomarse de la mano
+  alcanceMano: 0.06,    // × tamaño de letra: distancia entre sus cajas a la que se alcanzan
+  rupturaVinculo: 0.65, // × tamaño de letra: si el vínculo se estira más, se rompe
+  rigidezVinculo: 0.25,
+  enderezar: 0.012,     // fuerza con la que un grupo ayuda a sus miembros a ponerse de pie (× tamaño del grupo)
+  sueno: 2.5,           // s sola y quieta para dormirse (apagarse)
+  elevar: 0.000005,     // fuerza con la que el gremio sube la palabra completa
+  percepcionGremio: 160,// px base con los que una letra pequeña percibe un grupo (+ 90 por miembro)
+};
+
+let W, H, DPR, F, capH;
+const engine = Engine.create({ gravity: { y: 1 } });
+const world = engine.world;
+let paredes = [];
+let letras = [];       // N O V A
+let vinculos = [];     // { a, b, c }
+const contacto = new Map();
+let t = 0, lectura = false, lecturaT = 0, brujula = -Math.PI / 2, primerVinculo = false;
+
+// ---------- escena ----------
+function medir() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2);
+  cv.width = W * DPR; cv.height = H * DPR;
+  F = Math.min(W * 0.15, H * 0.3);
+  ctx.font = `700 ${F}px ${FUENTE}`;
+  capH = ctx.measureText('N').actualBoundingBoxAscent || F * 0.7;
+}
+function construirParedes() {
+  Composite.remove(world, paredes);
+  const g = 200;
+  paredes = [
+    Bodies.rectangle(W / 2, H + g / 2 - 10, W * 3, g, { isStatic: true }),           // suelo (10 px de margen para las serifas)
+    Bodies.rectangle(-g / 2, H / 2, g, H * 4, { isStatic: true }),                    // izquierda
+    Bodies.rectangle(W + g / 2, H / 2, g, H * 4, { isStatic: true }),                 // derecha
+    Bodies.rectangle(W / 2, -H * 1.5 - g / 2, W * 3, g, { isStatic: true }),          // techo lejano
+  ];
+  Composite.add(world, paredes);
+}
+
+// Cada letra es un cuerpo con la forma aproximada de su glifo.
+function crearLetra(ch, x, y) {
+  ctx.font = `700 ${F}px ${FUENTE}`;
+  const w = ctx.measureText(ch).width * 0.92, h = capH;
+  const op = { friction: 0.6, frictionAir: 0.012, restitution: 0.15, density: 0.0016 };
+  let b, v = null;
+  if (ch === 'A') v = [{ x: -w * 0.12, y: -h / 2 }, { x: w * 0.12, y: -h / 2 }, { x: w / 2, y: h / 2 }, { x: -w / 2, y: h / 2 }];
+  if (ch === 'V') v = [{ x: -w / 2, y: -h / 2 }, { x: w / 2, y: -h / 2 }, { x: w * 0.12, y: h / 2 }, { x: -w * 0.12, y: h / 2 }];
+  if (ch === 'O') b = Bodies.circle(x, y, Math.max(w, h) / 2, op);
+  else if (v) b = Bodies.fromVertices(x, y, [v], op);
+  else b = Bodies.rectangle(x, y, w, h, op);
+  // Matter pone la posición del cuerpo en el centroide del trapecio (más cerca de la base ancha);
+  // el glifo se dibuja centrado en su caja, así que guardamos ese desfase
+  const c = v ? Matter.Vertices.centre(v) : { x: 0, y: 0 };
+  b.off = { x: -c.x, y: -c.y };
+  b.ch = ch; b.quieta = 0; b.dormida = 0; b.oro = 0;
+  Composite.add(world, b);
+  return b;
+}
+function crearLetras() {
+  letras.forEach(l => Composite.remove(world, l));
+  vinculos.forEach(v => Composite.remove(world, v.c));
+  letras = []; vinculos = []; contacto.clear(); lectura = false;
+  // caen dispersas y desordenadas: nadie empieza en grupo
+  const orden = ['V', 'N', 'A', 'O'];
+  orden.forEach((ch, i) => {
+    const l = crearLetra(ch, W * (0.18 + i * 0.21) + (Math.random() - 0.5) * 40, -F * (0.6 + i * 0.5));
+    Body.setAngle(l, (Math.random() - 0.5) * 1.2);
+    letras.push(l);
+  });
+}
+
+// ---------- el gremio: letras pequeñas que caminan (steering) ----------
+const SUB = 'GREMIO DE AVENTUREROS';
+let gremio = [];
+function crearGremio() {
+  gremio = [];
+  let k = 0;
+  for (let i = 0; i < SUB.length; i++) {
+    if (SUB[i] === ' ') continue;
+    gremio.push({ ch: SUB[i], idx: i, x: Math.random() * W, y: H - 30 - Math.random() * 20, vx: (Math.random() - .5) * 2, vy: 0,
+      a: Math.random() * TAU, ang: 0, k: k++ });
+  }
+}
+
+// ---------- grupos (componentes conexas de los vínculos) ----------
+function grupos() {
+  const p = new Map(letras.map(l => [l, l]));
+  const raiz = l => { while (p.get(l) !== l) l = p.get(l); return l; };
+  vinculos.forEach(v => p.set(raiz(v.a), raiz(v.b)));
+  const g = new Map();
+  letras.forEach(l => { const r = raiz(l); if (!g.has(r)) g.set(r, []); g.get(r).push(l); });
+  letras.forEach(l => l.grupo = g.get(raiz(l)));
+  return [...g.values()];
+}
+const centro = (g) => { let x = 0, y = 0; g.forEach(l => { x += l.position.x; y += l.position.y; }); return { x: x / g.length, y: y / g.length }; };
+const unidas = (a, b) => vinculos.some(v => (v.a === a && v.b === b) || (v.a === b && v.b === a));
+function soltar(l) {
+  vinculos = vinculos.filter(v => { if (v.a === l || v.b === l) { Composite.remove(world, v.c); return false; } return true; });
+}
+
+// ---------- vínculos: estar al alcance de la mano un momento = tomarse de la mano ----------
+// Se usa la distancia entre las cajas de las letras, no el choque exacto: una V, una A y una O
+// puestas en fila casi no se tocan (V ancha arriba, A ancha abajo, O redonda) y nunca se unirían.
+const clave = (a, b) => a.id + ':' + b.id;
+function buscarVinculos() {
+  const alcance = F * R.alcanceMano;
+  for (let i = 0; i < letras.length; i++) for (let j = i + 1; j < letras.length; j++) {
+    const a = letras[i], b = letras[j], k = clave(a, b);
+    if (unidas(a, b)) { contacto.delete(k); continue; }
+    const A = a.bounds, B = b.bounds;
+    const dx = Math.max(A.min.x - B.max.x, B.min.x - A.max.x, 0), dy = Math.max(A.min.y - B.max.y, B.min.y - A.max.y, 0);
+    if (Math.hypot(dx, dy) > alcance) { contacto.delete(k); continue; }
+    const tc = (contacto.get(k) || 0) + 1 / 60;
+    contacto.set(k, tc);
+    if (tc < R.tiempoVinculo) continue;
+    // la "mano": un punto entre las dos que ambas sostienen
+    const m = Vector.mult(Vector.add(a.position, b.position), 0.5);
+    const c = Constraint.create({ bodyA: a, bodyB: b, pointA: Vector.sub(m, a.position), pointB: Vector.sub(m, b.position),
+      length: 0, stiffness: R.rigidezVinculo, damping: 0.1 });
+    Composite.add(world, c);
+    vinculos.push({ a, b, c });
+    contacto.delete(k);
+    a.chispa = b.chispa = 1;
+    if (!primerVinculo) { primerVinculo = true; pista.style.opacity = 0; }
+  }
+}
+
+// ---------- mouse ----------
+const mouse = Mouse.create(cv);
+const mc = MouseConstraint.create(engine, { mouse, constraint: { stiffness: 0.18, damping: 0.1, render: { visible: false } } });
+Composite.add(world, mc);
+mouse.element.removeEventListener('mousewheel', mouse.mousewheel);
+mouse.element.removeEventListener('DOMMouseScroll', mouse.mousewheel);
+mouse.element.removeEventListener('wheel', mouse.mousewheel);
+cv.addEventListener('dblclick', e => {
+  const p = { x: e.clientX, y: e.clientY };
+  const l = letras.find(l => Matter.Vertices.contains(l.vertices, p) || (l.ch === 'O' && Vector.magnitude(Vector.sub(l.position, p)) < l.circleRadius));
+  if (l) { soltar(l); Body.applyForce(l, l.position, { x: 0, y: -0.02 * l.mass }); }
+});
+
+// ---------- reglas que corren cada paso ----------
+function paso() {
+  t += 1 / 60;
+  buscarVinculos();
+  // vínculos que se estiran demasiado se rompen
+  vinculos = vinculos.filter(v => {
+    const pa = Vector.add(v.a.position, v.c.pointA), pb = Vector.add(v.b.position, v.c.pointB);
+    if (Vector.magnitude(Vector.sub(pa, pb)) > F * R.rupturaVinculo) { Composite.remove(world, v.c); return false; }
+    return true;
+  });
+  const gs = grupos();
+  for (const l of letras) {
+    const n = l.grupo.length;
+    // en grupo se ayudan a estar de pie; sola no hay quien la sostenga
+    if (n > 1) {
+      let ang = l.angle % TAU; if (ang > Math.PI) ang -= TAU; if (ang < -Math.PI) ang += TAU;
+      // aceleración angular deseada (rad/paso²): resorte hacia la vertical + amortiguación.
+      // Matter aplica torque · (1/inercia) · dt², por eso se divide entre dt² (16.7 ms)² ≈ 278
+      const alfa = -ang * R.enderezar * n - l.angularVelocity * 0.15;
+      l.torque += alfa * l.inertia / 277.8;
+    }
+    // sueño: sola y quieta → se apaga
+    const quieta = l.speed < 0.3 && Math.abs(l.angularVelocity) < 0.02;
+    l.quieta = (n === 1 && quieta && mc.body !== l) ? l.quieta + 1 / 60 : 0;
+    l.dormida += ((l.quieta > R.sueno ? 1 : 0) - l.dormida) * 0.04;
+    l.oro += ((n > 1 ? (n - 1) / 3 : 0) - l.oro) * 0.08;
+    l.chispa = (l.chispa || 0) * 0.93;
+  }
+  // lectura: las cuatro juntas, en orden y más o menos alineadas
+  const todas = gs.find(g => g.length === 4);
+  let enOrden = false;
+  if (todas) {
+    const s = [...todas].sort((a, b) => a.position.x - b.position.x);
+    enOrden = s.map(l => l.ch).join('') === 'NOVA' &&
+      s.every((l, i) => i === 0 || Math.abs(l.position.y - s[i - 1].position.y) < F * 0.5);
+  }
+  if (enOrden && !lectura) lecturaT = 1;
+  lectura = enOrden;
+  lecturaT *= 0.97;
+  // juntos llegan más alto: el gremio levanta la palabra completa hasta el centro (salvo que la estés sosteniendo)
+  if (lectura && !(mc.body && letras.includes(mc.body))) {
+    const ty = H * 0.42;
+    for (const l of letras) {
+      const fy = -l.mass * 0.001 * engine.gravity.y               // anula su peso
+        + (ty - l.position.y) * l.mass * R.elevar                   // resorte hacia la altura del logo
+        - l.velocity.y * l.mass * 0.0006;                           // amortiguación
+      Body.applyForce(l, l.position, { x: -l.velocity.x * l.mass * 0.0003, y: fy });
+    }
+  }
+  pasoBrujula(gs);
+  pasoGremio(gs);
+}
+
+// La brújula (la O) apunta hacia el aventurero más cercano que no está en su grupo.
+// Cuando ya están todos, apunta al norte.
+function pasoBrujula(gs) {
+  const o = letras.find(l => l.ch === 'O');
+  let obj = -Math.PI / 2, mejor = Infinity;
+  for (const l of letras) {
+    if (o.grupo.includes(l)) continue;
+    const d = Vector.magnitude(Vector.sub(l.position, o.position));
+    if (d < mejor) { mejor = d; obj = Math.atan2(l.position.y - o.position.y, l.position.x - o.position.x); }
+  }
+  let d = obj - brujula; d -= TAU * Math.round(d / TAU);
+  brujula += d * 0.08;
+}
+
+// El gremio: cada letra pequeña percibe los grupos cercanos (más grandes = se notan desde más lejos).
+function pasoGremio(gs) {
+  const fs = F * 0.17;
+  let anchoSub = 0; ctx.font = `500 ${fs}px ${FUENTE}`;
+  const avance = []; for (const c of SUB) { avance.push(anchoSub); anchoSub += ctx.measureText(c).width + fs * 0.12; }
+  let base = null;
+  if (lectura) {
+    const s = [...letras].sort((a, b) => a.position.x - b.position.x);
+    const cx = (s[0].position.x + s[3].position.x) / 2;
+    const y = Math.max(...letras.map(l => l.bounds.max.y)) + fs * 1.4;
+    base = { x: cx - anchoSub / 2, y: Math.min(y, H - fs * 0.8) };
+  }
+  for (const g of gremio) {
+    let dx = 0, dy = 0, vmax = 2.2, fmax = 0.12;
+    if (base) {
+      // lectura: cada una va a su lugar en "GREMIO DE AVENTUREROS" (arrive)
+      const tx = base.x + avance[g.idx], ty = base.y;
+      dx = tx - g.x; dy = ty - g.y; const d = Math.hypot(dx, dy);
+      vmax = d < 80 ? 4 * d / 80 : 4; fmax = 0.35;
+      steerTo(g, dx, dy, vmax, fmax); g.ang *= 0.9;
+    } else {
+      // busca el grupo más grande que percibe (los solos no atraen a nadie)
+      let mejor = null, mejorS = 0;
+      for (const gr of gs) {
+        if (gr.length < 2) continue;
+        const c = centro(gr), d = Math.hypot(c.x - g.x, c.y - g.y);
+        if (d < R.percepcionGremio + 90 * gr.length && gr.length > mejorS) { mejor = c; mejorS = gr.length; }
+      }
+      if (mejor) {
+        // rodean al grupo: cada una en su ángulo, girando despacio
+        const a = g.k / gremio.length * TAU + t * 0.3, rr = F * (0.55 + 0.22 * mejorS);
+        dx = mejor.x + Math.cos(a) * rr - g.x; dy = mejor.y + Math.sin(a) * rr * 0.7 - g.y;
+        steerTo(g, dx, dy, 3, 0.15);
+      } else {
+        // wander por el suelo
+        g.a += (Math.random() - 0.5) * 0.3;
+        steerTo(g, Math.cos(g.a) * 30, (H - fs * 0.7) - g.y, 1.1, 0.06);
+      }
+      g.ang += (Math.max(-0.4, Math.min(0.4, g.vx * 0.08)) - g.ang) * 0.1;
+    }
+    // separación entre letras pequeñas
+    for (const o of gremio) {
+      if (o === g) continue;
+      const sx = g.x - o.x, sy = g.y - o.y, d2 = sx * sx + sy * sy;
+      if (d2 > 0 && d2 < (fs * 0.9) ** 2) { g.vx += sx / d2 * 2; g.vy += sy / d2 * 2; }
+    }
+    g.x += g.vx; g.y += g.vy;
+    if (g.x < 10) { g.x = 10; g.vx = Math.abs(g.vx); g.a = 0; }
+    if (g.x > W - 10) { g.x = W - 10; g.vx = -Math.abs(g.vx); g.a = Math.PI; }
+    if (g.y > H - fs * 0.4) { g.y = H - fs * 0.4; g.vy = 0; }
+  }
+}
+function steerTo(g, dx, dy, vmax, fmax) {
+  const m = Math.hypot(dx, dy) || 1;
+  let sx = dx / m * vmax - g.vx, sy = dy / m * vmax - g.vy;
+  const f = Math.hypot(sx, sy); if (f > fmax) { sx *= fmax / f; sy *= fmax / f; }
+  g.vx += sx; g.vy += sy;
+  const v = Math.hypot(g.vx, g.vy); if (v > vmax + 0.5) { g.vx *= (vmax + 0.5) / v; g.vy *= (vmax + 0.5) / v; }
+}
+
+// ---------- dibujo: todo lo que se ve son letras ----------
+function colorLetra(l) {
+  const k = Math.min(1, l.oro + l.chispa * 0.6), s = 1 - l.dormida * 0.45;
+  const a = [207, 214, 227], b = [212, 175, 55];
+  const c = a.map((v, i) => Math.round((v + (b[i] - v) * k) * s));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function dibujar() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const fondo = ctx.createRadialGradient(W / 2, H * 0.45, 0, W / 2, H * 0.45, Math.max(W, H) * 0.75);
+  fondo.addColorStop(0, lectura ? '#1d2a42' : '#18223a'); fondo.addColorStop(1, '#0c1220');
+  ctx.fillStyle = fondo; ctx.fillRect(0, 0, W, H);
+
+  // gremio
+  const fs = F * 0.17;
+  ctx.font = `500 ${fs}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const g of gremio) {
+    ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.ang);
+    ctx.fillStyle = lectura ? ORO : '#8d97ab';
+    ctx.fillText(g.ch, 0, 0); ctx.restore();
+  }
+
+  // letras grandes
+  ctx.font = `700 ${F}px ${FUENTE}`;
+  for (const l of letras) {
+    const n = l.grupo ? l.grupo.length : 1;
+    ctx.save();
+    ctx.translate(l.position.x, l.position.y); ctx.rotate(l.angle); ctx.translate(l.off.x, l.off.y);
+    ctx.shadowColor = ORO; ctx.shadowBlur = n > 1 ? 10 + 12 * n + 30 * l.chispa + 40 * lecturaT : 0;
+    ctx.fillStyle = colorLetra(l);
+    if (l.ch === 'O') dibujarO(l); else letra(l.ch);
+    ctx.restore();
+  }
+  if (panel.classList.contains('on')) actualizarPanel();
+}
+// baseline alfabética, bajada media altura de mayúscula: el glifo queda centrado en su cuerpo
+function letra(ch) { ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.fillText(ch, 0, capH / 2); }
+
+// La O de la brújula: el aro es la O; la aguja está hecha de letras V (las puntas de la rosa).
+function dibujarO(l) {
+  letra('O');
+  ctx.rotate(-l.angle); // la aguja no gira con el aro: siempre apunta a su objetivo
+  ctx.shadowBlur = 0;
+  // cada punta es una V delgada: su vértice toca el borde interior de la O (≈0.34 de la altura de mayúscula)
+  const puntas = [[0, 1], [Math.PI / 2, .72], [Math.PI, .72], [-Math.PI / 2, .72], [Math.PI / 4, .5], [3 * Math.PI / 4, .5], [-Math.PI / 4, .5], [-3 * Math.PI / 4, .5]];
+  for (const [o, s] of puntas) {
+    const a = brujula + o, punta = capH * 0.34 * s, sy = 0.9 * punta / capH;
+    ctx.save();
+    ctx.rotate(a - Math.PI / 2);                // la V apunta hacia +y; la giramos para que apunte en dirección a
+    ctx.translate(0, punta - capH * sy / 2);    // su centro, para que el vértice quede en la punta
+    ctx.scale(0.24 * s, sy);
+    ctx.fillStyle = o === 0 ? ORO : (l.dormida > 0.5 ? PLATA_OSC : PLATA);
+    ctx.font = `700 ${F}px ${FUENTE}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('V', 0, 0);
+    ctx.restore();
+  }
+}
+
+function actualizarPanel() {
+  const gs = grupos();
+  panel.innerHTML = `<div>grupos: <b>${gs.map(g => g.map(l => l.ch).join('')).join(' · ')}</b></div>
+    <div>vínculos: <b>${vinculos.length}</b></div>
+    <div>dormidas: <b>${letras.filter(l => l.dormida > 0.5).map(l => l.ch).join(' ') || '—'}</b></div>
+    <div>lectura (NOVA en orden): <b>${lectura ? 'sí' : 'no'}</b></div>
+    <div style="opacity:.6;margin-top:6px">D panel · R reiniciar · doble clic: soltar una letra</div>`;
+}
+
+// ---------- entrada ----------
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'd') panel.classList.toggle('on');
+  if (k === 'r') { crearLetras(); crearGremio(); }
+});
+addEventListener('resize', () => { medir(); construirParedes(); Mouse.setScale(mouse, { x: 1, y: 1 }); });
+
+// ---------- inicio y bucle (paso fijo 60 Hz) ----------
+medir(); construirParedes(); crearLetras(); crearGremio();
+let last = performance.now(), acc = 0;
+function frame(now) {
+  acc += Math.min(0.1, (now - last) / 1000); last = now;
+  let n = 0;
+  while (acc >= 1 / 60 && n < 3) { Engine.update(engine, 1000 / 60); paso(); acc -= 1 / 60; n++; }
+  dibujar();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__nova = { R, get letras() { return letras; }, get vinculos() { return vinculos; }, get lectura() { return lectura; }, gremio: () => gremio, engine, paso, dibujar, Body, grupos };
+})();
+</script>
+</body>
+</html>
