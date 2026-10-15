@@ -6,8 +6,10 @@
 <title>NOVA · Gremio de Aventureros</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<!-- respaldo: si la red bloquea cdnjs, Matter.js se trae de jsdelivr -->
+<script>window.Matter || document.write('<script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"><\/script>')</script>
 <style>
   html, body { margin:0; height:100%; overflow:hidden; background:#121a29; }
   canvas { display:block; width:100vw; height:100vh; touch-action:none; cursor:grab; }
@@ -25,8 +27,17 @@
 <div id="pista">arrastra las letras · júntalas</div>
 <div id="panel"></div>
 <script>
+// si algo falla al cargar, decirlo en pantalla en vez de dejarla vacía
+function avisar(msg) {
+  const d = document.getElementById('pista');
+  d.style.cssText += ';color:#d4af37;opacity:1;white-space:normal;text-align:center;letter-spacing:.05em';
+  d.textContent = msg;
+}
+addEventListener('error', e => avisar('no se pudo cargar: ' + (e.message || 'error') + ' · recarga con Ctrl+F5'));
+if (!window.Matter) avisar('no se pudo cargar la librería de física (Matter.js): revisa la conexión y recarga');
 (async () => {
 'use strict';
+if (!window.Matter) return;
 const { Engine, Bodies, Body, Composite, Constraint, Mouse, MouseConstraint, Events, Vector } = Matter;
 const TAU = Math.PI * 2;
 const PLATA = '#cfd6e3', PLATA_OSC = '#5d6779', ORO = '#d4af37';
@@ -34,7 +45,11 @@ const FUENTE = 'Cinzel, "Trajan Pro", Georgia, serif';
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const pista = document.getElementById('pista'), panel = document.getElementById('panel');
-try { await document.fonts.load(`700 100px Cinzel`); await document.fonts.load(`500 20px Cinzel`); } catch (e) {}
+// Espera la fuente como máximo 2.5 s: si Google Fonts tarda, arranca con la de respaldo
+// y, cuando llega Cinzel, vuelve a armar las letras con sus medidas reales.
+const fuenteLista = Promise.all([document.fonts.load(`700 100px Cinzel`), document.fonts.load(`500 20px Cinzel`)]).catch(() => null);
+const aTiempo = await Promise.race([fuenteLista.then(() => true), new Promise(r => setTimeout(() => r(false), 2500))]);
+if (!aTiempo) fuenteLista.then(() => { if (document.fonts.check('700 40px Cinzel')) { medir(); construirParedes(); crearLetras(); crearGremio(); } });
 
 // ---------- reglas (los números que se pueden cambiar para verificar predicciones) ----------
 const R = {
