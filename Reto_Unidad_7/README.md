@@ -36,7 +36,8 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 ### Qué puede hacer la persona
 
 - **Arrastrar y lanzar** las letras.
-- **Juntarlas:** si dos letras quedan lado a lado durante 0.35 s, se toman de la mano. Lado a lado quiere decir: al alcance de la mano (a menos de 6 % del tamaño de letra), a la misma altura y las dos más o menos derechas. Apiladas o de cabeza no se unen.
+- **Levantar** una letra: al agarrarla, se pone de pie.
+- **Juntarlas:** si dos letras quedan lado a lado durante 0.25 s, se toman de la mano. Lado a lado quiere decir: al alcance de la mano (a menos de 15 % del tamaño de letra), a la misma altura y las dos más o menos derechas. Si acercas una letra a otra que está tirada, la tirada se levanta para recibirla. Apiladas o de cabeza no se unen.
 - **Separarlas:** jalando fuerte (el vínculo se rompe si se estira más de 0.65 del tamaño de letra) o con **doble clic** sobre una letra, que se suelta de su grupo y da un saltito.
 - **R** reinicia y **D** abre un panel con los grupos, los vínculos, quién está dormida y si hay lectura.
 
@@ -77,6 +78,13 @@ En resumen: **en NOVA nadie se aventura solo.**
   - La fuerza que endereza al grupo era tan fuerte que no dejaba girar las letras.
 
   Cambios: cada letra es ahora un cuerpo compuesto por sus trazos; solo se toman de la mano lado a lado (diferencia de altura menor a 0.45 del tamaño de letra y ambas con menos de 0.6 rad de inclinación); y el enderezado es 4 veces más suave (0.012 → 0.003) y no actúa mientras arrastras. Verificación: si dejo caer la A sobre la V, la A se resbala y queda acostada sin unirse; NOVA en fila sigue formando sus 3 vínculos y el logo.
+
+- **Prueba 8 (jugándolo):** las letras no se juntaban. Había dos reglas que chocaban: sola, una letra se cae y queda acostada, pero solo podía tomarse de la mano si estaba derecha. Además, al arrastrarla colgaba torcida del punto donde la agarraste, y el alcance era muy corto (~9 px). Cambios:
+  - **Si levantas una letra sola, se pone de pie.**
+  - **Si le acercas una letra a otra que está tirada** (a menos de 0.6 del tamaño de letra), **la tirada se levanta para tomarle la mano.** Encaja con el atributo: acompañada se levanta.
+  - Alcance de 0.06 → 0.15 del tamaño de letra, tiempo de 0.35 → 0.25 s e inclinación permitida de 0.6 → 0.8 rad.
+
+  También encontré un error del mouse en pantallas de alta resolución (escala 1.5× o 2×, la mayoría de portátiles y celulares): Matter recibía la posición multiplicada por esa escala y no agarraba las letras. Ahora se le pasa la escala de la pantalla. Verificación con eventos de mouse reales: agarré la O tirada, la llevé junto a la N y quedaron unidas; la A, que estaba cerca, también se unió (grupo NOA), y la brújula apuntó a la V, que quedó sola.
 
 ### Predicciones verificables (para la sustentación)
 
