@@ -42,14 +42,7 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 - **Separarlas:** jalando fuerte (el vínculo se rompe si se estira más de 0.65 del tamaño de letra) o con **doble clic** sobre una letra, que se suelta de su grupo y da un saltito.
 - **R** reinicia y **D** abre un panel con los grupos, a quién busca la brújula y si NOVA está completo.
 
-# Pruebas con otras personas
-
-| Persona | Qué intentó | Qué descubrió | Cómo lo interpretó |
-|---|---|---|---|
-| | | | |
-
 # Autoevaluación
-
 
 | Criterio | Puntos | Valoración |
 |---|:---:|:---:|
