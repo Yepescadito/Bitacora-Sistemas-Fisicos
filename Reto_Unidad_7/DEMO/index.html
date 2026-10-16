@@ -6,7 +6,7 @@
 <title>NOVA · Gremio de Aventureros</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <!-- respaldo: si la red bloquea cdnjs, Matter.js se trae de jsdelivr -->
 <script>window.Matter || document.write('<script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"><\/script>')</script>
@@ -42,12 +42,13 @@ const { Engine, Bodies, Body, Composite, Constraint, Mouse, MouseConstraint, Eve
 const TAU = Math.PI * 2;
 const PLATA = '#cfd6e3', PLATA_OSC = '#5d6779', ORO = '#d4af37';
 const FUENTE = 'Cinzel, "Trajan Pro", Georgia, serif';
+const FUENTE_DECO = '"Cinzel Decorative", Cinzel, Georgia, serif'; // N, V y A: con los remates curvos del logo
 
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const pista = document.getElementById('pista'), panel = document.getElementById('panel');
 // Espera la fuente como máximo 2.5 s: si Google Fonts tarda, arranca con la de respaldo
 // y, cuando llega Cinzel, vuelve a armar las letras con sus medidas reales.
-const fuenteLista = Promise.all([document.fonts.load(`700 100px Cinzel`), document.fonts.load(`500 20px Cinzel`)]).catch(() => null);
+const fuenteLista = Promise.all([document.fonts.load(`700 100px Cinzel`), document.fonts.load(`500 20px Cinzel`), document.fonts.load(`700 100px "Cinzel Decorative"`)]).catch(() => null);
 const aTiempo = await Promise.race([fuenteLista.then(() => true), new Promise(r => setTimeout(() => r(false), 2500))]);
 if (!aTiempo) fuenteLista.then(() => { if (document.fonts.check('700 40px Cinzel')) { medir(); construirParedes(); crearLetras(); crearGremio(); } });
 
@@ -113,7 +114,7 @@ function trazo(x1, y1, x2, y2, g, op) {
     { ...op, angle: Math.atan2(y2 - y1, x2 - x1) });
 }
 function crearLetra(ch, x, y) {
-  ctx.font = `700 ${F}px ${FUENTE}`;
+  ctx.font = `700 ${F}px ${ch === 'O' ? FUENTE : FUENTE_DECO}`;
   const w = ctx.measureText(ch).width * 0.9, h = capH, g = h * 0.15; // g: grosor del trazo
   const op = { friction: 0.6, frictionAir: 0.012, restitution: 0.1, density: 0.0016 };
   const L = x - w / 2 + g / 2, Rr = x + w / 2 - g / 2, T = y - h / 2 + g / 2, B = y + h / 2 - g / 2;
@@ -324,8 +325,8 @@ function empezarLogo() {
   vinculos.forEach(v => Composite.remove(world, v.c));
   soltarMouse(0); mc.collisionFilter.mask = 0; // el logo ya no se arrastra (R reinicia)
   // destino: la palabra centrada, cada glifo en su lugar como si se escribiera "NOVA"
-  ctx.font = `700 ${F}px ${FUENTE}`;
-  const anchos = [...'NOVA'].map(c => ctx.measureText(c).width), total = anchos.reduce((a, b) => a + b);
+  // la O lleva un 30 % más de espacio: sus puntas de afuera sobresalen del aro
+  const anchos = [...'NOVA'].map(c => { ctx.font = `700 ${F}px ${c === 'O' ? FUENTE : FUENTE_DECO}`; return ctx.measureText(c).width * (c === 'O' ? 1.3 : 1); }), total = anchos.reduce((a, b) => a + b);
   let x = W / 2 - total / 2;
   destinoLogo = {};
   [...'NOVA'].forEach((c, i) => { destinoLogo[c] = { x: x + anchos[i] / 2, y: H * 0.42 }; x += anchos[i]; });
@@ -413,11 +414,22 @@ function steerTo(g, dx, dy, vmax, fmax) {
 }
 
 // ---------- dibujo: todo lo que se ve son letras ----------
-function colorLetra(l) {
-  const k = Math.min(1, l.oro + l.chispa * 0.6), s = 1 - l.dormida * 0.45;
-  const a = [207, 214, 227], b = [212, 175, 55];
-  const c = a.map((v, i) => Math.round((v + (b[i] - v) * k) * s));
-  return `rgb(${c[0]},${c[1]},${c[2]})`;
+// Plata metálica como la del logo (degradado vertical con un quiebre oscuro a media altura).
+// Dormida: se apaga hacia gris; en grupo conserva la plata y la delata el halo dorado.
+function plata(l) {
+  const g = ctx.createLinearGradient(0, -capH * 0.55, 0, capH * 0.55);
+  const s = 1 - l.dormida * 0.55, c = (r, gg, b) => `rgb(${Math.round(r * s)},${Math.round(gg * s)},${Math.round(b * s)})`;
+  g.addColorStop(0, c(255, 255, 255)); g.addColorStop(0.42, c(214, 219, 227));
+  g.addColorStop(0.55, c(150, 158, 171)); g.addColorStop(1, c(238, 241, 246));
+  return g;
+}
+// Oro del emblema: degradado diagonal claro → ocre → claro.
+function oro(r, apagado = 0) {
+  const g = ctx.createLinearGradient(-r, -r, r, r), s = 1 - apagado * 0.5;
+  const c = (a, b, d) => `rgb(${Math.round(a * s)},${Math.round(b * s)},${Math.round(d * s)})`;
+  g.addColorStop(0, c(246, 231, 176)); g.addColorStop(0.45, c(206, 168, 86));
+  g.addColorStop(0.7, c(150, 112, 44)); g.addColorStop(1, c(233, 206, 134));
+  return g;
 }
 function dibujar() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -430,13 +442,13 @@ function dibujar() {
   ctx.font = `500 ${fs}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const g of gremio) {
     ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.ang);
-    ctx.fillStyle = lectura ? ORO : '#8d97ab';
+    ctx.fillStyle = lectura ? '#dfe3ea' : '#8d97ab';
     ctx.fillText(g.ch, 0, 0); ctx.restore();
   }
 
   // letras grandes
-  ctx.font = `700 ${F}px ${FUENTE}`;
   for (const l of letras) {
+    ctx.font = `700 ${F}px ${l.ch === 'O' ? FUENTE : FUENTE_DECO}`;
     const n = l.grupo ? l.grupo.length : 1;
     ctx.save();
     // rechazada: tiembla un instante
@@ -446,8 +458,7 @@ function dibujar() {
     // la que señala la brújula brilla en plata, latiendo suave
     if (l === buscada) { ctx.shadowColor = PLATA; ctx.shadowBlur = 14 + 10 * Math.sin(t * 4); }
     if (l.ch === 'O' && lectura) ctx.shadowBlur *= animO().s;
-    ctx.fillStyle = colorLetra(l);
-    if (l.ch === 'O') dibujarO(l); else letra(l.ch);
+    if (l.ch === 'O') dibujarO(l); else { ctx.fillStyle = plata(l); letra(l.ch); }
     ctx.restore();
   }
   if (panel.classList.contains('on')) actualizarPanel();
@@ -455,26 +466,55 @@ function dibujar() {
 // baseline alfabética, bajada media altura de mayúscula: el glifo queda centrado en su cuerpo
 function letra(ch) { ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.fillText(ch, 0, capH / 2); }
 
-// La O de la brújula: el aro es la O; la aguja está hecha de letras V (las puntas de la rosa).
+// ---------- la O: el emblema de NOVA, armado solo con letras ----------
+//   aro ............ la O
+//   rombos (N/E/S/O) una A pequeña sobre una V pequeña (◆ = Δ + ∇)
+//   puntas de afuera V delgadas
+//   bloques ........ letras I entre el aro y la estrella, en las diagonales
+//   estrella ....... 8 V muy afiladas, cada una con una mitad clara y otra oscura (las facetas)
+// La estrella es la aguja: gira hacia la letra que toca; su punta principal es más clara.
+// Glifo `ch` (Cinzel) de altura `alto`, apuntando en la dirección `a`, con el vértice a distancia `r` del centro.
+function glifoRadial(ch, a, r, alto, ancho, estilo, faceta) {
+  ctx.save();
+  ctx.rotate(a - Math.PI / 2);                    // +y local = dirección a
+  ctx.translate(0, r - alto / 2);
+  const sx = ancho / capH, sy = alto / capH;
+  ctx.scale(sx, ch === 'A' ? -sy : sy);           // la A se voltea para que su vértice también apunte hacia afuera
+  ctx.font = `700 ${F}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = estilo; ctx.fillText(ch, 0, 0);
+  if (faceta) { ctx.beginPath(); ctx.rect(0, -capH, capH, capH * 2); ctx.clip(); ctx.fillStyle = faceta; ctx.fillText(ch, 0, 0); }
+  ctx.restore();
+}
 function dibujarO(l) {
-  const anim = animO();
+  const anim = animO(), h = capH, ap = l.dormida;
   ctx.rotate(anim.giro); ctx.scale(anim.s, anim.s); // con NOVA completo: gira 360° y palpita
-  letra('O');
-  ctx.rotate(-l.angle); // la aguja no gira con el aro: siempre apunta a su objetivo
+  const g = oro(h * 0.6, ap);
+  // aro
+  ctx.font = `700 ${F}px ${FUENTE}`; ctx.fillStyle = g; letra('O');
   ctx.shadowBlur = 0;
-  // cada punta es una V delgada: su vértice toca el borde interior de la O (≈0.34 de la altura de mayúscula)
-  const puntas = [[0, 1], [Math.PI / 2, .72], [Math.PI, .72], [-Math.PI / 2, .72], [Math.PI / 4, .5], [3 * Math.PI / 4, .5], [-Math.PI / 4, .5], [-3 * Math.PI / 4, .5]];
-  for (const [o, s] of puntas) {
-    const a = brujula + o, punta = capH * 0.34 * s, sy = 0.9 * punta / capH;
-    ctx.save();
-    ctx.rotate(a - Math.PI / 2);                // la V apunta hacia +y; la giramos para que apunte en dirección a
-    ctx.translate(0, punta - capH * sy / 2);    // su centro, para que el vértice quede en la punta
-    ctx.scale(0.24 * s, sy);
-    ctx.fillStyle = o === 0 ? ORO : (l.dormida > 0.5 ? PLATA_OSC : PLATA);
-    ctx.font = `700 ${F}px ${FUENTE}`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('V', 0, 0);
-    ctx.restore();
+  const claro = ap > 0.5 ? '#8b7a52' : '#f7ecc4', oscuro = ap > 0.5 ? '#5e5132' : '#a07a35';
+  for (let i = 0; i < 4; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 2;
+    // puntas de afuera: largas arriba y abajo, cortas y anchas a los lados (como en el emblema)
+    const lateral = i % 2 === 1;
+    glifoRadial('V', a, h * (lateral ? 0.66 : 0.7), h * (lateral ? 0.16 : 0.2), h * (lateral ? 0.16 : 0.09), g);
+    // rombo sobre el aro: Δ (A volteada hacia afuera) + ∇ (V hacia adentro)
+    glifoRadial('A', a, h * 0.565, h * 0.1, h * 0.075, g);  // angostas: los trazos se juntan y el rombo se ve macizo
+    glifoRadial('V', a + Math.PI, -h * 0.365, h * 0.1, h * 0.075, g);
+    // diagonales: punta corta afuera y dos bloques (I) adentro
+    const d = a + Math.PI / 4;
+    glifoRadial('V', d, h * 0.6, h * 0.08, h * 0.07, g);
+    for (const s of [-0.13, 0.13]) glifoRadial('I', d + s, h * 0.4, h * 0.12, h * 0.11, g);
+  }
+  // estrella = aguja (no gira con el aro: apunta a su objetivo)
+  ctx.rotate(-l.angle); // deshace el ángulo del cuerpo (el giro del logo sí se conserva)
+  // primero las diagonales (más cortas) y encima las cardinales, con la principal al final
+  const puntas = [[Math.PI / 4, 0.3], [3 * Math.PI / 4, 0.3], [-Math.PI / 4, 0.3], [-3 * Math.PI / 4, 0.3],
+    [Math.PI, 0.39], [Math.PI / 2, 0.39], [-Math.PI / 2, 0.39], [0, 0.39]];
+  for (const [o, r] of puntas) {
+    const principal = o === 0;
+    glifoRadial('V', brujula + o, h * r, h * r * 0.95, h * (r > 0.35 ? 0.15 : 0.12),
+      principal ? '#fff6d8' : oscuro, principal ? '#ffffff' : claro);
   }
 }
 
