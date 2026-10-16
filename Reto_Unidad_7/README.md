@@ -37,30 +37,35 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 
 - **Arrastrar y lanzar** las letras.
 - **Levantar** una letra: al agarrarla, se pone de pie.
-- **Juntarlas:** si dos letras quedan lado a lado durante 0.25 s, se toman de la mano. Lado a lado quiere decir: al alcance de la mano (a menos de 15 % del tamaño de letra), a la misma altura y las dos más o menos derechas. Si acercas una letra a otra que está tirada, la tirada se levanta para recibirla. Apiladas o de cabeza no se unen.
+- **Juntarlas con la O:** todo empieza en la O. Una letra se une si la dejas lado a lado con la letra que le corresponde durante 0.25 s. Lado a lado quiere decir: al alcance de la mano (a menos de 15 % del tamaño de letra), a la misma altura y las dos más o menos derechas. Si acercas una letra a otra que está tirada, la tirada se levanta para recibirla.
 - **Separarlas:** jalando fuerte (el vínculo se rompe si se estira más de 0.65 del tamaño de letra) o con **doble clic** sobre una letra, que se suelta de su grupo y da un saltito.
-- **R** reinicia y **D** abre un panel con los grupos, los vínculos, quién está dormida y si hay lectura.
+- **R** reinicia y **D** abre un panel con los grupos, a quién busca la brújula y si NOVA está completo.
 
 ### Reglas
 
 1. **Solas no se sostienen.** Una letra sola cae, queda de lado y, si pasa 2.5 s quieta, **se duerme**: se apaga a gris.
-2. **En grupo se ayudan a estar de pie.** Cada letra de un grupo recibe una aceleración suave que la endereza, más fuerte cuanto más grande es el grupo. Mientras arrastras el grupo no actúa, así que puedes girarlo y voltearlo. Además se vuelve dorada: más dorada y más brillante cuanto más grande es el grupo.
-3. **La brújula busca a quien falta.** La aguja de la O apunta hacia la letra más cercana que no está en su grupo. Cuando están todas, apunta al norte.
-4. **El gremio va donde hay grupo.** Las letras pequeñas caminan por el suelo. Perciben a los grupos a una distancia de 160 px más 90 px por miembro: un grupo más grande se nota desde más lejos. Una letra sola no atrae a nadie. Cuando perciben un grupo, lo rodean.
-5. **Solo NOVA completo y en orden se lee.** Si las cuatro están unidas, en orden de izquierda a derecha y más o menos alineadas:
-   - el gremio se ordena debajo y escribe "GREMIO DE AVENTUREROS";
-   - entre todos **levantan la palabra** hasta el centro de la pantalla;
-   - aparece el logo completo.
+2. **Todo empieza con la O y solo en orden.** Solo existen tres uniones, cada una con su lado:
+   - la N a la izquierda de la O;
+   - la V a la derecha de la O;
+   - la A a la derecha de la V, y solo cuando la V ya está con la O.
 
-   Si están unidas pero desordenadas (por ejemplo, VONA), el gremio las rodea revuelto y no forma el subtítulo.
+   Como no hay otra forma de unirse, lo único que se puede armar es NOVA.
+3. **La brújula dice a quién buscar.** La aguja de la O apunta a la siguiente letra que falta (primero la N, luego la V y luego la A), y esa letra brilla en plata, latiendo suave.
+4. **El grupo dice que no.** Si llevas una letra equivocada (o del lado equivocado) junto al grupo de la O, tiembla, el grupo la aparta y se te suelta de la mano.
+5. **En grupo se ayudan a estar de pie.** Cada letra de un grupo recibe una aceleración suave que la endereza, más fuerte cuanto más grande es el grupo; mientras arrastras el grupo, esa ayuda se apaga. Además se vuelve dorada: más dorada y más brillante cuanto más grande es el grupo.
+6. **El gremio va donde hay grupo.** Las letras pequeñas caminan por el suelo. Perciben a los grupos a una distancia de 160 px más 90 px por miembro, así que un grupo más grande se nota desde más lejos. Una letra sola no atrae a nadie. Cuando perciben un grupo, lo rodean.
+7. **NOVA completo:**
+   - las letras se acomodan en el centro como el logo;
+   - el gremio escribe "GREMIO DE AVENTUREROS" debajo;
+   - la O empieza su ciclo: **gira 360°, palpita dos veces, descansa y vuelve a girar**.
 
 ### Qué espero que se descubra jugando
 
 - Que una letra sola se cae y se apaga; acompañada se levanta y brilla.
-- Que la brújula señala a quien falta reunir.
+- Que la O es el centro: todo se arma a partir de ella, y su brújula señala a quién le toca.
+- Que cada letra tiene su lugar: si no es la que toca o no va de su lado, el grupo la rechaza.
 - Que el gremio no se interesa por una letra sola, sino por los grupos.
-- Que el orden importa para que se lea el nombre.
-- Que solo el grupo completo llega a lo más alto y convoca al gremio entero.
+- Que el grupo completo convoca al gremio entero, y la brújula gira como si la aventura estuviera por empezar.
 
 En resumen: **en NOVA nadie se aventura solo.**
 
@@ -86,6 +91,13 @@ En resumen: **en NOVA nadie se aventura solo.**
 
   También encontré un error del mouse en pantallas de alta resolución (escala 1.5× o 2×, la mayoría de portátiles y celulares): Matter recibía la posición multiplicada por esa escala y no agarraba las letras. Ahora se le pasa la escala de la pantalla. Verificación con eventos de mouse reales: agarré la O tirada, la llevé junto a la N y quedaron unidas; la A, que estaba cerca, también se unió (grupo NOA), y la brújula apuntó a la V, que quedó sola.
 
+- **Prueba 9 (rediseño):** quise que el armado contara una historia clara: todo empieza con la O, la brújula guía y solo se puede leer NOVA. Ahora solo existen tres uniones, cada una con su lado (N|O, O|V y V|A), y la A solo después de la V. La brújula apunta a la siguiente letra y esa letra brilla. Si llevas una letra equivocada, tiembla y el grupo la aparta. Al completar, las letras se acomodan en el centro y la O gira 360°, palpita dos veces y vuelve a girar, en ciclos de 3.2 s. Verificación con eventos de mouse reales:
+  - La A junto a la O: rechazada, quedó a 182 px.
+  - La N a la izquierda de la O: grupo NO, y la brújula pasó a buscar la V.
+  - La V a la derecha de la O: se unió, y la A, que estaba justo al lado, se unió a la V; NOVA completo y logo con la O girando.
+
+  En la prueba también apareció un error: si la página se abre en una pestaña oculta, el navegador puede reportar ancho 0, las letras nacían de tamaño 0 y la física terminaba en NaN. Ahora hay un tamaño mínimo y las letras se rehacen si el tamaño cambia mucho.
+
 ### Predicciones verificables (para la sustentación)
 
 | Si cambio… | Predigo… |
@@ -94,6 +106,8 @@ En resumen: **en NOVA nadie se aventura solo.**
 | `rupturaVinculo` 0.65 → 0.3 | los grupos se deshacen con facilidad al lanzarlos |
 | `enderezar` → 0 | los grupos ya no se ponen de pie: la diferencia entre sola y acompañada se pierde |
 | `percepcionGremio` → 0 | el gremio solo nota grupos muy grandes; con dos letras no se acerca |
+| quitar `['V', 'A']` de `PARES` | la A nunca se puede unir: la brújula se queda apuntándola y NOVA no se completa |
+| `tiempoRechazo` → 2 | se puede sostener una letra equivocada junto al grupo mucho más tiempo antes de que la aparten |
 
 (Los parámetros están al inicio de `DEMO/index.html`, en el objeto `R`.)
 

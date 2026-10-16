@@ -24,7 +24,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="pista">arrastra las letras · júntalas</div>
+<div id="pista">la brújula de la O señala a quién buscar · arrástrala hasta su lado</div>
 <div id="panel"></div>
 <script>
 // si algo falla al cargar, decirlo en pantalla en vez de dejarla vacía
@@ -62,9 +62,14 @@ const R = {
   inclinacionMano: 0.8, // rad: más inclinada que esto, una letra no puede tomarse de la mano
   enderezar: 0.003,     // fuerza con la que un grupo ayuda a sus miembros a ponerse de pie (× tamaño del grupo)
   sueno: 2.5,           // s sola y quieta para dormirse (apagarse)
-  elevar: 0.000005,     // fuerza con la que el gremio sube la palabra completa
+  tiempoRechazo: 0.3,   // s que una letra equivocada debe estar junto al grupo de la O para ser rechazada
+  empujeRechazo: 0.012, // fuerza (× masa) con la que el grupo la aparta
+  llegarLogo: 0.07,     // qué tan rápido se acomodan en el centro al completarse (fracción por paso)
   percepcionGremio: 160,// px base con los que una letra pequeña percibe un grupo (+ 90 por miembro)
 };
+// Las únicas uniones posibles, con su lado: [izquierda, derecha]. Todas salen de la O:
+// la A solo puede llegar cuando la V ya está con la O.
+const PARES = [['N', 'O'], ['O', 'V'], ['V', 'A']];
 
 let W, H, DPR, F, capH;
 const engine = Engine.create({ gravity: { y: 1 } });
@@ -73,11 +78,12 @@ let paredes = [];
 let letras = [];       // N O V A
 let vinculos = [];     // { a, b, c }
 const contacto = new Map();
-let t = 0, lectura = false, lecturaT = 0, brujula = -Math.PI / 2, primerVinculo = false;
+let t = 0, lectura = false, lecturaT = 0, logoT0 = 0, brujula = -Math.PI / 2, primerVinculo = false, buscada = null;
 
 // ---------- escena ----------
 function medir() {
-  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2);
+  // tamaño mínimo: una pestaña abierta en segundo plano puede reportar 0 y las letras nacerían de tamaño 0
+  W = Math.max(innerWidth, 320); H = Math.max(innerHeight, 320); DPR = Math.min(devicePixelRatio || 1, 2);
   cv.width = W * DPR; cv.height = H * DPR;
   // Matter convierte la posición del mouse con (ancho del canvas / ancho en pantalla) / pixelRatio:
   // sin decirle el DPR, en pantallas 2× el mouse quedaba al doble de distancia y no agarraba las letras
@@ -119,7 +125,7 @@ function crearLetra(ch, x, y) {
   const b = partes.length === 1 ? partes[0] : Body.create({ parts: partes, ...op });
   // el cuerpo queda centrado en su centro de masa; guardamos dónde quedó el centro del glifo
   b.off = { x: x - b.position.x, y: y - b.position.y };
-  b.ch = ch; b.quieta = 0; b.dormida = 0; b.oro = 0;
+  b.ch = ch; b.quieta = 0; b.dormida = 0; b.oro = 0; b.rechazo = 0;
   Composite.add(world, b);
   return b;
 }
@@ -127,6 +133,7 @@ function crearLetras() {
   letras.forEach(l => Composite.remove(world, l));
   vinculos.forEach(v => Composite.remove(world, v.c));
   letras = []; vinculos = []; contacto.clear(); lectura = false;
+  mc.collisionFilter.mask = 0xFFFFFFFF; // se pueden volver a agarrar
   // caen dispersas y desordenadas: nadie empieza en grupo
   const orden = ['V', 'N', 'A', 'O'];
   orden.forEach((ch, i) => {
@@ -175,8 +182,19 @@ function soltar(l) {
 // Se usa la distancia entre las cajas de las letras, no el choque exacto: una V, una A y una O
 // puestas en fila casi no se tocan (V ancha arriba, A ancha abajo, O redonda) y nunca se unirían.
 const clave = (a, b) => a.id + ':' + b.id;
+const letraO = () => letras.find(l => l.ch === 'O');
+// ¿esta unión es una de las permitidas, del lado correcto y conectada con la O?
+function unionValida(a, b) {
+  const p = PARES.find(p => (p[0] === a.ch && p[1] === b.ch) || (p[0] === b.ch && p[1] === a.ch));
+  if (!p) return false;
+  const izq = a.ch === p[0] ? a : b, der = izq === a ? b : a;
+  const grupoO = letraO().grupo || [];
+  return izq.position.x < der.position.x && (grupoO.includes(izq) || grupoO.includes(der));
+}
 function buscarVinculos() {
   const alcance = F * R.alcanceMano;
+  const grupoO = letraO().grupo || [];
+  const sostenida = mc.body && letras.includes(mc.body) ? mc.body : null;
   for (let i = 0; i < letras.length; i++) for (let j = i + 1; j < letras.length; j++) {
     const a = letras[i], b = letras[j], k = clave(a, b);
     if (unidas(a, b)) { contacto.delete(k); continue; }
@@ -186,6 +204,18 @@ function buscarVinculos() {
     if (distCajas(a, b) > alcance || !ladoALado) { contacto.delete(k); continue; }
     const tc = (contacto.get(k) || 0) + 1 / 60;
     contacto.set(k, tc);
+    if (!unionValida(a, b)) {
+      // la llevas al grupo de la O pero no le toca (o va del lado equivocado): tiembla y la apartan
+      const dentro = grupoO.includes(a) ? a : grupoO.includes(b) ? b : null, fuera = dentro === a ? b : a;
+      if (dentro && !grupoO.includes(fuera) && tc >= R.tiempoRechazo) {
+        fuera.rechazo = 1;
+        const lado = Math.sign(fuera.position.x - dentro.position.x) || 1;
+        Body.applyForce(fuera, fuera.position, { x: lado * R.empujeRechazo * fuera.mass, y: -R.empujeRechazo * 0.5 * fuera.mass });
+        if (fuera === sostenida) soltarMouse(0.5); // se te suelta de la mano
+        contacto.delete(k);
+      }
+      continue;
+    }
     if (tc < R.tiempoVinculo) continue;
     // la "mano": un punto entre las dos que ambas sostienen
     const m = Vector.mult(Vector.add(a.position, b.position), 0.5);
@@ -206,15 +236,24 @@ Composite.add(world, mc);
 mouse.element.removeEventListener('mousewheel', mouse.mousewheel);
 mouse.element.removeEventListener('DOMMouseScroll', mouse.mousewheel);
 mouse.element.removeEventListener('wheel', mouse.mousewheel);
+// suelta lo que el mouse tenga agarrado y no deja agarrar nada durante `s` segundos
+// (Matter vuelve a agarrar lo que esté bajo el cursor mientras el botón siga presionado)
+let bloqueoMouse = 0;
+function soltarMouse(s) {
+  mc.body = null; mc.constraint.bodyB = null; mc.constraint.pointB = null;
+  mc.collisionFilter.mask = 0; bloqueoMouse = s;
+}
 cv.addEventListener('dblclick', e => {
   const p = { x: e.clientX, y: e.clientY };
   const l = letras.find(l => Matter.Vertices.contains(l.vertices, p) || (l.ch === 'O' && Vector.magnitude(Vector.sub(l.position, p)) < l.circleRadius));
-  if (l) { soltar(l); Body.applyForce(l, l.position, { x: 0, y: -0.02 * l.mass }); }
+  if (l && !lectura) { soltar(l); Body.applyForce(l, l.position, { x: 0, y: -0.02 * l.mass }); }
 });
 
 // ---------- reglas que corren cada paso ----------
 function paso() {
   t += 1 / 60;
+  if (bloqueoMouse > 0 && (bloqueoMouse -= 1 / 60) <= 0 && !lectura) mc.collisionFilter.mask = 0xFFFFFFFF;
+  if (lectura) { pasoLogo(); return; }
   buscarVinculos();
   // vínculos que se estiran demasiado se rompen
   vinculos = vinculos.filter(v => {
@@ -249,44 +288,68 @@ function paso() {
     l.dormida += ((l.quieta > R.sueno ? 1 : 0) - l.dormida) * 0.04;
     l.oro += ((n > 1 ? (n - 1) / 3 : 0) - l.oro) * 0.08;
     l.chispa = (l.chispa || 0) * 0.93;
+    l.rechazo *= 0.9;
   }
-  // lectura: las cuatro juntas, en orden y más o menos alineadas
-  const todas = gs.find(g => g.length === 4);
-  let enOrden = false;
-  if (todas) {
-    const s = [...todas].sort((a, b) => a.position.x - b.position.x);
-    enOrden = s.map(l => l.ch).join('') === 'NOVA' &&
-      s.every((l, i) => i === 0 || Math.abs(l.position.y - s[i - 1].position.y) < F * 0.5);
-  }
-  if (enOrden && !lectura) lecturaT = 1;
-  lectura = enOrden;
-  lecturaT *= 0.97;
-  // juntos llegan más alto: el gremio levanta la palabra completa hasta el centro (salvo que la estés sosteniendo)
-  if (lectura && !(mc.body && letras.includes(mc.body))) {
-    const ty = H * 0.42;
-    for (const l of letras) {
-      const fy = -l.mass * 0.001 * engine.gravity.y               // anula su peso
-        + (ty - l.position.y) * l.mass * R.elevar                   // resorte hacia la altura del logo
-        - l.velocity.y * l.mass * 0.0006;                           // amortiguación
-      Body.applyForce(l, l.position, { x: -l.velocity.x * l.mass * 0.0003, y: fy });
-    }
-  }
+  // completo: como solo existen las uniones correctas, si las cuatro están juntas se lee NOVA
+  if (letraO().grupo.length === 4) empezarLogo();
   pasoBrujula(gs);
   pasoGremio(gs);
 }
 
-// La brújula (la O) apunta hacia el aventurero más cercano que no está en su grupo.
-// Cuando ya están todos, apunta al norte.
-function pasoBrujula(gs) {
-  const o = letras.find(l => l.ch === 'O');
-  let obj = -Math.PI / 2, mejor = Infinity;
-  for (const l of letras) {
-    if (o.grupo.includes(l)) continue;
-    const d = Vector.magnitude(Vector.sub(l.position, o.position));
-    if (d < mejor) { mejor = d; obj = Math.atan2(l.position.y - o.position.y, l.position.x - o.position.x); }
+// La brújula (la O) apunta a la letra que le toca unirse: N, luego V, luego A
+// (la A solo cuando ya está la V). Esa letra brilla un poco para que se note.
+function siguiente() {
+  const g = letraO().grupo;
+  for (const ch of ['N', 'V', 'A']) {
+    const l = letras.find(x => x.ch === ch);
+    if (g.includes(l)) continue;
+    if (ch === 'A' && !g.some(x => x.ch === 'V')) continue;
+    return l;
   }
+  return null;
+}
+function pasoBrujula() {
+  const o = letraO();
+  buscada = siguiente();
+  const obj = buscada ? Math.atan2(buscada.position.y - o.position.y, buscada.position.x - o.position.x) : -Math.PI / 2;
   let d = obj - brujula; d -= TAU * Math.round(d / TAU);
   brujula += d * 0.08;
+}
+
+// ---------- NOVA completo: se van al centro y la O gira 360°, palpita, gira 360°… ----------
+let destinoLogo = null;
+function empezarLogo() {
+  lectura = true; lecturaT = 1; logoT0 = t; brujula = -Math.PI / 2; buscada = null;
+  // las uniones ya cumplieron: se quitan para que no tiren mientras las letras se acomodan
+  vinculos.forEach(v => Composite.remove(world, v.c));
+  soltarMouse(0); mc.collisionFilter.mask = 0; // el logo ya no se arrastra (R reinicia)
+  // destino: la palabra centrada, cada glifo en su lugar como si se escribiera "NOVA"
+  ctx.font = `700 ${F}px ${FUENTE}`;
+  const anchos = [...'NOVA'].map(c => ctx.measureText(c).width), total = anchos.reduce((a, b) => a + b);
+  let x = W / 2 - total / 2;
+  destinoLogo = {};
+  [...'NOVA'].forEach((c, i) => { destinoLogo[c] = { x: x + anchos[i] / 2, y: H * 0.42 }; x += anchos[i]; });
+}
+function pasoLogo() {
+  for (const l of letras) {
+    const d = destinoLogo[l.ch];
+    const objetivo = { x: d.x - l.off.x, y: d.y - l.off.y }; // posición del cuerpo para que el glifo quede en d
+    Body.setAngle(l, angNorm(l.angle) * (1 - R.llegarLogo * 1.5));
+    Body.setPosition(l, Vector.add(l.position, Vector.mult(Vector.sub(objetivo, l.position), R.llegarLogo)));
+    Body.setVelocity(l, { x: 0, y: 0 }); Body.setAngularVelocity(l, 0);
+    l.oro += (1 - l.oro) * 0.08; l.dormida *= 0.9; l.chispa *= 0.93;
+  }
+  lecturaT *= 0.97;
+  pasoGremio(grupos());
+}
+// ciclo de la O: gira 360° (1.4 s), palpita dos veces (1 s), descansa (0.8 s)
+function animO() {
+  if (!lectura) return { giro: 0, s: 1 };
+  const u = (t - logoT0 - 1.2) % 3.2; // 1.2 s para que primero lleguen al centro
+  if (t - logoT0 < 1.2) return { giro: 0, s: 1 };
+  if (u < 1.4) { const k = u / 1.4; return { giro: TAU * (k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2), s: 1 }; }
+  if (u < 2.4) { const k = (u - 1.4) / 1.0; return { giro: 0, s: 1 + 0.13 * Math.abs(Math.sin(k * TAU)) * (1 - k * 0.35) }; }
+  return { giro: 0, s: 1 };
 }
 
 // El gremio: cada letra pequeña percibe los grupos cercanos (más grandes = se notan desde más lejos).
@@ -376,8 +439,13 @@ function dibujar() {
   for (const l of letras) {
     const n = l.grupo ? l.grupo.length : 1;
     ctx.save();
-    ctx.translate(l.position.x, l.position.y); ctx.rotate(l.angle); ctx.translate(l.off.x, l.off.y);
+    // rechazada: tiembla un instante
+    const tiembla = l.rechazo > 0.05 ? Math.sin(t * 70) * 7 * l.rechazo : 0;
+    ctx.translate(l.position.x + tiembla, l.position.y); ctx.rotate(l.angle); ctx.translate(l.off.x, l.off.y);
     ctx.shadowColor = ORO; ctx.shadowBlur = n > 1 ? 10 + 12 * n + 30 * l.chispa + 40 * lecturaT : 0;
+    // la que señala la brújula brilla en plata, latiendo suave
+    if (l === buscada) { ctx.shadowColor = PLATA; ctx.shadowBlur = 14 + 10 * Math.sin(t * 4); }
+    if (l.ch === 'O' && lectura) ctx.shadowBlur *= animO().s;
     ctx.fillStyle = colorLetra(l);
     if (l.ch === 'O') dibujarO(l); else letra(l.ch);
     ctx.restore();
@@ -389,6 +457,8 @@ function letra(ch) { ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; 
 
 // La O de la brújula: el aro es la O; la aguja está hecha de letras V (las puntas de la rosa).
 function dibujarO(l) {
+  const anim = animO();
+  ctx.rotate(anim.giro); ctx.scale(anim.s, anim.s); // con NOVA completo: gira 360° y palpita
   letra('O');
   ctx.rotate(-l.angle); // la aguja no gira con el aro: siempre apunta a su objetivo
   ctx.shadowBlur = 0;
@@ -413,7 +483,8 @@ function actualizarPanel() {
   panel.innerHTML = `<div>grupos: <b>${gs.map(g => g.map(l => l.ch).join('')).join(' · ')}</b></div>
     <div>vínculos: <b>${vinculos.length}</b></div>
     <div>dormidas: <b>${letras.filter(l => l.dormida > 0.5).map(l => l.ch).join(' ') || '—'}</b></div>
-    <div>lectura (NOVA en orden): <b>${lectura ? 'sí' : 'no'}</b></div>
+    <div>la brújula busca: <b>${buscada ? buscada.ch : '—'}</b></div>
+    <div>NOVA completo: <b>${lectura ? 'sí' : 'no'}</b></div>
     <div style="opacity:.6;margin-top:6px">D panel · R reiniciar · doble clic: soltar una letra</div>`;
 }
 
@@ -423,7 +494,8 @@ addEventListener('keydown', e => {
   if (k === 'd') panel.classList.toggle('on');
   if (k === 'r') { crearLetras(); crearGremio(); }
 });
-addEventListener('resize', () => { medir(); construirParedes(); });
+// si el tamaño cambia mucho, las letras se rehacen con las medidas nuevas
+addEventListener('resize', () => { const F0 = F; medir(); construirParedes(); if (Math.abs(F - F0) > F0 * 0.2) { crearLetras(); crearGremio(); } });
 
 // ---------- inicio y bucle (paso fijo 60 Hz) ----------
 medir(); construirParedes(); crearLetras(); crearGremio();
@@ -436,7 +508,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-window.__nova = { R, get letras() { return letras; }, get vinculos() { return vinculos; }, get lectura() { return lectura; }, gremio: () => gremio, engine, paso, dibujar, Body, grupos };
+window.__nova = { R, get buscada() { return buscada; }, animO, get letras() { return letras; }, get vinculos() { return vinculos; }, get lectura() { return lectura; }, gremio: () => gremio, engine, paso, dibujar, Body, grupos };
 })();
 </script>
 </body>
