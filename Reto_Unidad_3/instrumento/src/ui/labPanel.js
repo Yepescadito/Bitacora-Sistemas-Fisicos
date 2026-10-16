@@ -62,7 +62,7 @@ function button(parent, label, onClick) {
   return b;
 }
 
-export function createLabPanel({ params, onReset, onPreset, onModeChange, onPauseChange }) {
+export function createLabPanel({ params, onReset, onPreset, onModeChange, onPauseChange, onBlast }) {
   const refreshers = [];
   const panel = document.createElement('aside');
   panel.className = 'panel';
@@ -84,7 +84,9 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
     vortexStrength: params.vortexStrength.value,
     dragCoefficient: params.dragCoefficient.value,
     windX: params.wind.value.x,
-    windY: params.wind.value.y
+    windY: params.wind.value.y,
+    shellRadius: params.shellRadius.value,       // [NUEVO]
+    shellStiffness: params.shellStiffness.value  // [NUEVO]
   };
 
   refreshers.push(rangeRow(sim, 'timeScale', state, 'timeScale', 0, 2, 0.01, (v) => params.timeScale.value = v, () => params.timeScale.value));
@@ -106,6 +108,16 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
   refreshers.push(rangeRow(force, 'wind.x', state, 'windX', -4, 4, 0.05, (v) => params.wind.value.x = v, () => params.wind.value.x));
   refreshers.push(rangeRow(force, 'wind.y', state, 'windY', -4, 4, 0.05, (v) => params.wind.value.y = v, () => params.wind.value.y));
 
+  // [NUEVO] fuerzas propias del instrumento
+  const own = document.createElement('div');
+  own.className = 'group';
+  own.innerHTML = '<h2>Presión (fuerzas propias)</h2><p>Confinamiento: F = −k·max(0, r−R)·r̂ · Liberación: F = E(t)·r̂/(r+s)</p>';
+  panel.append(own);
+  refreshers.push(checkRow(own, 'Confinamiento', params.shellEnabled.value > 0, (v) => params.shellEnabled.value = v ? 1 : 0, () => params.shellEnabled.value > 0));
+  refreshers.push(rangeRow(own, 'shellRadius (R)', state, 'shellRadius', 0.3, 5, 0.05, (v) => params.shellRadius.value = v, () => params.shellRadius.value));
+  refreshers.push(rangeRow(own, 'shellStiffness (k)', state, 'shellStiffness', 0, 12, 0.1, (v) => params.shellStiffness.value = v, () => params.shellStiffness.value));
+  button(own, 'Liberar (E₀ = Emax)', () => onBlast?.());
+
   const tests = document.createElement('div');
   tests.className = 'group';
   tests.innerHTML = '<h2>Pruebas de comportamiento</h2><p>Antes de pulsar una prueba, predice qué debería ocurrir.</p>';
@@ -115,8 +127,17 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
     ['wind', '2 · Fuerza constante +X'],
     ['attract', '3 · Atracción'],
     ['repel', '4 · Repulsión'],
-    ['vortex', '5 · Vórtice']
+    ['vortex', '5 · Vórtice'],
+    ['shell', '6 · Confinamiento (R = 2)'],   // [NUEVO]
+    ['blast', '7 · Liberación']               // [NUEVO]
   ]) button(tests, label, () => onPreset(id));
+
+  // [NUEVO] medición: promedios leídos de la GPU cada 0.5 s
+  const meas = document.createElement('div');
+  meas.className = 'group';
+  meas.innerHTML = '<h2>Medición (GPU → CPU)</h2><div class="measure">midiendo…</div>';
+  panel.append(meas);
+  const measOut = meas.querySelector('.measure');
 
   const actions = document.createElement('div');
   actions.className = 'group';
@@ -131,6 +152,17 @@ export function createLabPanel({ params, onReset, onPreset, onModeChange, onPaus
   return {
     element: panel,
     setVisible(visible) { panel.classList.toggle('hidden', !visible); },
-    refresh() { for (const item of refreshers) item.refresh(); }
+    refresh() { for (const item of refreshers) item.refresh(); },
+    // [NUEVO]
+    setMeasure(m) {
+      const f = (x) => (x >= 0 ? '+' : '') + x.toFixed(3);
+      measOut.innerHTML = `
+        <div><span>radio medio al centro</span><b>${m.radioMedio.toFixed(3)}</b></div>
+        <div><span>vel. radial media (+ afuera)</span><b>${f(m.velRadial)}</b></div>
+        <div><span>vel. de giro media (+ antihorario)</span><b>${f(m.velGiro)}</b></div>
+        <div><span>vel. X media</span><b>${f(m.velX)}</b></div>
+        <div><span>rapidez media</span><b>${m.rapidez.toFixed(3)}</b></div>
+        <div class="nota">${m.muestras} partículas muestreadas</div>`;
+    }
   };
 }

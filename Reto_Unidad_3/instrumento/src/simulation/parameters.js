@@ -24,6 +24,19 @@ export function createParameters() {
     vortexStrength: uniform(1.4),
 
     dragEnabled: uniform(1.0),
-    dragCoefficient: uniform(0.12)
+    dragCoefficient: uniform(0.12),
+
+    // [NUEVO] Confinamiento: cáscara elástica de radio shellRadius alrededor del atractor.
+    // Solo actúa sobre las partículas que están afuera: F = -k · max(0, r - R) · r̂
+    shellEnabled: uniform(0.0),
+    shellRadius: uniform(3.0),
+    shellStiffness: uniform(4.0),
+
+    // [NUEVO] Liberación: empuje radial hacia afuera que decae en el tiempo.
+    // F = E(t) · r̂ / (r + s), con E(t) = E0 · e^(-t/τ) calculado en la CPU (main.js)
+    blast: uniform(0.0),
+
+    // [NUEVO] Presión 0..1 (solo se usa para el color: más presión, más caliente)
+    pressure: uniform(0.0)
   };
 }

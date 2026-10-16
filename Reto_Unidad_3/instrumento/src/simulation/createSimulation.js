@@ -71,6 +71,19 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     // 4) LINEAR DRAG: F = -c v
     force.addAssign(v.mul(params.dragCoefficient).mul(params.dragEnabled).mul(-1.0));
 
+    // [NUEVO] r̂ hacia afuera (desde el atractor hacia la partícula) y distancia r
+    const outward = radialDirection.mul(-1.0);
+    const r = toAttractor.length();
+
+    // 5) [NUEVO] CONFINAMIENTO (cáscara elástica): F = -k · max(0, r - R) · r̂
+    // Adentro de la cáscara no hace nada; afuera, un resorte de una sola cara la devuelve.
+    const outside = max(r.sub(params.shellRadius), 0.0);
+    force.addAssign(outward.mul(outside).mul(params.shellStiffness).mul(params.shellEnabled).mul(-1.0));
+
+    // 6) [NUEVO] LIBERACIÓN: F = E(t) · r̂ / (r + s). E(t) llega desde la CPU ya decayendo.
+    // Se divide entre (r + s) y no entre r²: así la onda empuja también a las lejanas.
+    force.addAssign(outward.mul(params.blast).div(r.add(params.softening)));
+
     // INTEGRATION ---------------------------------------------------------
     // Unit mass: a = F. Semi-implicit Euler: update v, then p.
     v.addAssign(force.mul(dt));
@@ -101,8 +114,9 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
   material.colorNode = Fn(() => {
     const speed = velocityBuffer.toAttribute().length();
     const t = speed.div(params.maxSpeed).clamp(0.0, 1.0);
-    const slow = color('#46a6ff');
-    const fast = color('#ffb35a');
+    // [NUEVO] la presión calienta la paleta: en reposo azul → cian; comprimida, violeta → blanco
+    const slow = mix(color('#2f6bff'), color('#b04bff'), params.pressure);
+    const fast = mix(color('#7fe8ff'), color('#fff1e0'), params.pressure);
     return vec4(mix(slow, fast, t), 1.0);
   })();
 
@@ -122,6 +136,29 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     renderer.compute(updateParticles);
   }
 
+  // [NUEVO] MEDICIÓN: copia los buffers de la GPU a la CPU y resume el estado en números,
+  // para comparar predicción y observación en el LAB sin depender de "se ve bien".
+  // r̂ es la dirección hacia afuera desde el atractor; el giro se mide alrededor del eje Z.
+  async function measure(center, sample = 64) {
+    const P = new Float32Array(await renderer.getArrayBufferAsync(positionBuffer.value));
+    const V = new Float32Array(await renderer.getArrayBufferAsync(velocityBuffer.value));
+    const stride = P.length / count; // vec3 puede venir alineado a 4 floats
+    let n = 0, r = 0, vr = 0, vt = 0, vx = 0, speed = 0;
+    for (let i = 0; i < count; i += sample) {
+      const k = i * stride;
+      const dx = P[k] - center.x, dy = P[k + 1] - center.y, dz = P[k + 2] - center.z;
+      const vxi = V[k], vyi = V[k + 1], vzi = V[k + 2];
+      const d = Math.hypot(dx, dy, dz) || 1e-6, dxy = Math.hypot(dx, dy) || 1e-6;
+      r += d;
+      vr += (dx * vxi + dy * vyi + dz * vzi) / d;   // + se aleja, − se acerca
+      vt += (-dy * vxi + dx * vyi) / dxy;           // + gira antihorario visto desde +Z
+      vx += vxi;
+      speed += Math.hypot(vxi, vyi, vzi);
+      n++;
+    }
+    return { radioMedio: r / n, velRadial: vr / n, velGiro: vt / n, velX: vx / n, rapidez: speed / n, muestras: n };
+  }
+
   function dispose() {
     geometry.dispose();
     material.dispose();
@@ -134,6 +171,7 @@ export function createSimulation({ renderer, scene, params, count = 131072 }) {
     velocityBuffer,
     reset,
     stepSimulation,
+    measure,
     dispose
   };
 }
