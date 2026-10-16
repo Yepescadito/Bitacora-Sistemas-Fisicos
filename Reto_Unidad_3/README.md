@@ -22,18 +22,12 @@ El instrumento hace sentir esa presión. Mientras sostengo una tecla, una cásca
 
 # Autoevaluación ponderada
 
-*(Por completar antes de la sesión 4: cada criterio de 0 a 100. Aporte = valoración × peso / 100.)*
 
-| Criterio | Peso | Evidencia | Valoración (0–100) | Aporte |
-|---|:---:|---|:---:|:---:|
-| Trazabilidad y comprensión del sistema | 25 | [Mapa del sistema](#mapa-del-sistema) · commit base `3d7bc6c` · marcas `[NUEVO]` | | |
-| Verificación del algoritmo de fuerzas | 25 | [Registro de pruebas](#registro-de-pruebas) (1–10, con números medidos en la GPU) | | |
-| Diseño de fuerzas e intención | 20 | [Intención](#intención) · [Ficha de fuerzas](#ficha-de-fuerzas) | | |
-| Instrumento, score e interpretación | 15 | [Controles](#controles) · [Score visual](#score-visual) | | |
-| Experimentación y criterio frente a la IA | 10 | [Bitácora de IA](#bitácora-de-ia) | | |
-| Entrega técnica y documentación | 5 | [URL publicada](https://yepescadito.github.io/Bitacora-Sistemas-Fisicos/Reto_Unidad_3/DEMO/) · este README | | |
-| **Total** | **100** | | | |
-
-## Sustentación
-
-*(Por completar.)*
+| Criterio | Puntos | Valoración |
+|---|:---:|:---:|
+| Trazabilidad y comprensión del sistema | 25 | 20 |
+| Verificación del algoritmo de fuerzas | 20 | 20 |
+| Instrumento, score e interpretación | 15 | 10 |
+| Experimentación y criterio frente a la IA | 10 | 10 |
+| Entrega técnica y documentación | 5 | 5 |
+| **Total** | **100** | 45|
