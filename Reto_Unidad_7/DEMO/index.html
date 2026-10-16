@@ -14,8 +14,8 @@
   html, body { margin:0; height:100%; overflow:hidden; background:#121a29; }
   canvas { display:block; width:100vw; height:100vh; touch-action:none; cursor:grab; }
   canvas:active { cursor:grabbing; }
-  #pista { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); color:#8d97ab;
-    font:500 14px Cinzel, serif; letter-spacing:.18em; transition:opacity 1.2s; pointer-events:none; white-space:nowrap; }
+  #pista { position:fixed; left:50%; top:28px; transform:translateX(-50%); color:#cfd6e3; /* arriba: abajo la tapaba el gremio */
+    font:500 clamp(13px,1.5vw,18px) Cinzel, serif; letter-spacing:.16em; text-shadow:0 0 12px rgba(212,175,55,.45); transition:opacity 1.2s; pointer-events:none; white-space:nowrap; }
   #panel { position:fixed; left:12px; top:12px; color:#cfd6e3; background:rgba(8,12,20,.8); font:12px/1.5 system-ui, sans-serif;
     padding:10px 12px; border-radius:6px; display:none; min-width:220px; }
   #panel.on { display:block; }
