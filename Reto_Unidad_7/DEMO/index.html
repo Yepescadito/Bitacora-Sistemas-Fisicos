@@ -185,12 +185,12 @@ function palo(x1, y1, x2, y2, grosor) {
   ctx.save();
   ctx.translate((x1 + x2) / 2, (y1 + y2) / 2); ctx.rotate(Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2);
   ctx.scale(grosor, len / capH);
-  ctx.fillText('I', 0, 0);
+  ctx.fillText('I', 0, capH / 2); // centrada en la altura de mayúscula, no en la caja de la fuente
   ctx.restore();
 }
 function letraIcono(ch, x, y, alto, ancho, rot = 0, espejo = 1) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(ancho / capH * espejo, alto / capH);
-  ctx.fillText(ch, 0, 0); ctx.restore();
+  ctx.fillText(ch, 0, capH / 2); ctx.restore();
 }
 function marco(x, y, w, h, rot, gr) { // rectángulo de 4 letras I
   ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
@@ -200,7 +200,7 @@ function marco(x, y, w, h, rot, gr) { // rectángulo de 4 letras I
 }
 function dibujarIconos() {
   const S = F * 0.42, gr = 0.24; // gr: qué tan gruesa es la I (más gruesa, más se notan sus serifas)
-  ctx.font = `500 ${F}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `500 ${F}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   for (const c of ICONOS) {
     if (c.alfa < 0.02) continue;
     ctx.save();
@@ -230,11 +230,13 @@ function dibujarIconos() {
         const hk = (2 * k + d + 6) % 6; palo(ix(k), iy(k), hx(hk), hy(hk), gr * 0.6);
       }
     } else if (c.id === 'trofeo') {
-      letraIcono('U', 0, -S * 0.14, S * 0.6, S * 0.6);                  // copa
-      letraIcono('C', -S * 0.29, -S * 0.2, S * 0.28, S * 0.16, 0, 1);   // asa izquierda: la C abre hacia la copa
-      letraIcono('C', S * 0.29, -S * 0.2, S * 0.28, S * 0.16, 0, -1);   // asa derecha: C volteada
-      palo(0, S * 0.14, 0, S * 0.4, gr * 2.4);                          // pie
-      palo(-S * 0.22, S * 0.44, S * 0.22, S * 0.44, gr * 2.4);          // base
+      // copa: una U de -0.42 a 0.04 (alto 0.46); asas: C delgadas pegadas al borde, a la altura del borde superior
+      letraIcono('U', 0, -S * 0.19, S * 0.46, S * 0.52);
+      letraIcono('C', -S * 0.25, -S * 0.27, S * 0.22, S * 0.11, 0, 1);  // asa izquierda: la C abre hacia la copa
+      letraIcono('C', S * 0.25, -S * 0.27, S * 0.22, S * 0.11, 0, -1);  // asa derecha: C volteada
+      palo(0, S * 0.03, 0, S * 0.3, gr * 1.6);                          // pie (de la copa a la base)
+      palo(-S * 0.12, S * 0.32, S * 0.12, S * 0.32, gr * 2.2);          // base: escalón de arriba
+      palo(-S * 0.2, S * 0.4, S * 0.2, S * 0.4, gr * 2.6);              // base: escalón de abajo, más ancho
     }
     ctx.restore();
   }
