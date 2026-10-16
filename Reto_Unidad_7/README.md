@@ -32,6 +32,7 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 | **La O** | además, el emblema y la brújula del gremio | el emblema dorado del logo armado solo con letras: el aro es la O; los rombos de los puntos cardinales son una A volteada sobre una V; las puntas de afuera son V delgadas; los bloques de las diagonales son letras I; y la estrella son 8 V afiladas, cada una con una mitad clara y otra oscura (las facetas). La estrella hace de aguja, y su punta principal es más clara |
 | **Letras pequeñas** | los miembros del gremio | agentes con steering (wander, seek, arrive y separación), como en la Unidad 6 |
 | **Vínculo** | tomarse de la mano | restricción de distancia 0 entre un punto que las dos letras sostienen |
+| **Íconos** | lo que se hace en NOVA: cartas (TCG), dado (juegos de mesa), d20 (rol) y trofeo (torneos) | armados con letras: los trazos son letras I estiradas entre dos puntos, los puntos del dado son O pequeñas y el trofeo es una U (copa) con dos C (asas) y letras I (pie y base) |
 
 ### Qué puede hacer la persona
 
@@ -54,10 +55,12 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 4. **El grupo dice que no.** Si llevas una letra equivocada (o del lado equivocado) junto al grupo de la O, tiembla, el grupo la aparta y se te suelta de la mano.
 5. **En grupo se ayudan a estar de pie.** Cada letra de un grupo recibe una aceleración suave que la endereza, más fuerte cuanto más grande es el grupo; mientras arrastras el grupo, esa ayuda se apaga. Además se vuelve dorada: más dorada y más brillante cuanto más grande es el grupo.
 6. **El gremio va donde hay grupo.** Las letras pequeñas caminan por el suelo. Perciben a los grupos a una distancia de 160 px más 90 px por miembro, así que un grupo más grande se nota desde más lejos. Una letra sola no atrae a nadie. Cuando perciben un grupo, lo rodean.
-7. **NOVA completo:**
+7. **Cada unión desbloquea una actividad de NOVA.** N+O hace aparecer las **cartas** (TCG); O+V, el **dado** (juegos de mesa); V+A, el **d20** (rol); y NOVA completo, el **trofeo** (torneos). Los íconos nacen desde el grupo y flotan sobre él. Si se deshace la unión, su ícono se desvanece.
+8. **NOVA completo:**
    - las letras se acomodan en el centro como el logo;
    - el gremio escribe "GREMIO DE AVENTUREROS" debajo;
-   - la O empieza su ciclo: **gira 360°, palpita dos veces, descansa y vuelve a girar**.
+   - la O empieza su ciclo: **gira 360°, palpita dos veces, descansa y vuelve a girar**;
+   - los cuatro íconos flotan a los lados: cartas y dado a la izquierda, d20 y trofeo a la derecha.
 
 ### Qué espero que se descubra jugando
 
@@ -66,6 +69,7 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 - Que cada letra tiene su lugar: si no es la que toca o no va de su lado, el grupo la rechaza.
 - Que el gremio no se interesa por una letra sola, sino por los grupos.
 - Que el grupo completo convoca al gremio entero, y la brújula gira como si la aventura estuviera por empezar.
+- Que cada unión desbloquea algo que se hace en NOVA: juntarse es lo que abre el juego.
 
 En resumen: **en NOVA nadie se aventura solo.**
 
@@ -99,6 +103,8 @@ En resumen: **en NOVA nadie se aventura solo.**
   En la prueba también apareció un error: si la página se abre en una pestaña oculta, el navegador puede reportar ancho 0, las letras nacían de tamaño 0 y la física terminaba en NaN. Ahora hay un tamaño mínimo y las letras se rehacen si el tamaño cambia mucho.
 
 - **Prueba 10 (parecido con el logo):** la tipografía no se parecía a la de NOVA. Comparé Cinzel, Cinzel Decorative y Forum, y elegí **Cinzel Decorative 700** para N, V y A: tiene el trazo curvo que abre la N y las colas de la V y la A, como el logo. Las letras van en plata metálica (degradado con un quiebre oscuro a media altura). En grupo conservan la plata y lo que delata la unión es el halo dorado. El gremio pasó del dorado al plateado, igual que el subtítulo del logo. Para la O reconstruí el emblema solo con letras (aro O, rombos A+V, puntas V, bloques I y estrella de 8 V con facetas). En la primera versión la estrella era demasiado delgada y los rombos se veían huecos: ensanché las puntas (0.075 → 0.15 de la altura) y angosté los rombos para que sus trazos se junten y se vean macizos. En el logo armado, la O tiene un 30 % más de espacio porque sus puntas sobresalen del aro.
+
+- **Prueba 11 (íconos):** quise que cada unión mostrara algo que se hace en NOVA, con los íconos de su página (cartas, dado, d20 y trofeo). Para cumplir la regla de que todo salga de las letras, los armé con letras: los trazos son letras I estiradas entre dos puntos, los puntos del dado son O pequeñas y el trofeo es una U con dos C y letras I. En la primera versión el trofeo se leía como letras sueltas ("ɔUc") y el pie casi no se veía; agrandé la copa, acerqué las asas y engrosé el pie y la base. Con I muy gruesas, sus serifas hacían que el d20 se viera espinoso, así que las adelgacé (0.32 → 0.24). También noté que si el tamaño de la ventana cambia más de un 20 %, el juego se reinicia (las letras se rehacen con las medidas nuevas).
 
 ### Predicciones verificables (para la sustentación)
 

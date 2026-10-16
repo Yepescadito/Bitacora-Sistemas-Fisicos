@@ -133,7 +133,7 @@ function crearLetra(ch, x, y) {
 function crearLetras() {
   letras.forEach(l => Composite.remove(world, l));
   vinculos.forEach(v => Composite.remove(world, v.c));
-  letras = []; vinculos = []; contacto.clear(); lectura = false;
+  letras = []; vinculos = []; contacto.clear(); lectura = false; resetIconos();
   mc.collisionFilter.mask = 0xFFFFFFFF; // se pueden volver a agarrar
   // caen dispersas y desordenadas: nadie empieza en grupo
   const orden = ['V', 'N', 'A', 'O'];
@@ -147,6 +147,99 @@ function crearLetras() {
 // ---------- el gremio: letras pequeñas que caminan (steering) ----------
 const SUB = 'GREMIO DE AVENTUREROS';
 let gremio = [];
+// ---------- íconos de lo que se hace en NOVA: cada unión desbloquea uno ----------
+// N+O → cartas (TCG) · O+V → dado (juegos de mesa) · V+A → d20 (rol) · NOVA completo → trofeo (torneos)
+// Están armados solo con letras: los trazos son letras I estiradas, los puntos son O pequeñas
+// y el trofeo es una U (copa) con dos C (asas), una I (pie) y una I acostada (base).
+const ICONOS = [
+  { id: 'cartas', par: ['N', 'O'] }, { id: 'dado', par: ['O', 'V'] },
+  { id: 'd20', par: ['V', 'A'] }, { id: 'trofeo', par: null },
+].map((c, i) => ({ ...c, x: 0, y: 0, alfa: 0, esc: 0, fase: i * 1.7, visto: false }));
+function resetIconos() { ICONOS.forEach(c => { c.alfa = 0; c.esc = 0; c.visto = false; }); }
+function pasoIconos() {
+  const L = ch => letras.find(l => l.ch === ch);
+  const S = F * 0.42;
+  const activos = ICONOS.filter(c => lectura || (c.par && unidas(L(c.par[0]), L(c.par[1]))));
+  // dónde flotan: en juego, en fila sobre el grupo de la O; en el logo, dos a cada lado de la palabra
+  const o = L('O'), g = o.grupo || [o];
+  const cx = g.reduce((s, l) => s + l.position.x, 0) / g.length;
+  const arriba = Math.min(...g.map(l => l.bounds.min.y));
+  const xs = letras.map(l => l.position.x), izq = Math.min(...xs) - F * 0.9, der = Math.max(...xs) + F * 0.9;
+  activos.forEach((c, k) => {
+    let tx, ty;
+    if (lectura) { tx = k < 2 ? izq : der; ty = H * 0.42 + (k % 2 ? S * 0.7 : -S * 0.7); }
+    else { tx = cx + (k - (activos.length - 1) / 2) * S * 1.5; ty = Math.max(S, arriba - S * 0.9); }
+    if (!c.visto) { c.x = cx; c.y = arriba; c.visto = true; }    // nace desde el grupo
+    c.x += (tx - c.x) * 0.06; c.y += (ty - c.y) * 0.06;
+  });
+  for (const c of ICONOS) {
+    const on = activos.includes(c);
+    c.alfa += ((on ? 1 : 0) - c.alfa) * (on ? 0.06 : 0.12);
+    c.esc += ((on ? 1 : 0.6) - c.esc) * 0.12;
+    if (!on && c.alfa < 0.02) c.visto = false;
+  }
+}
+// una letra I estirada entre dos puntos (el trazo de todos los íconos)
+function palo(x1, y1, x2, y2, grosor) {
+  const len = Math.hypot(x2 - x1, y2 - y1);
+  ctx.save();
+  ctx.translate((x1 + x2) / 2, (y1 + y2) / 2); ctx.rotate(Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2);
+  ctx.scale(grosor, len / capH);
+  ctx.fillText('I', 0, 0);
+  ctx.restore();
+}
+function letraIcono(ch, x, y, alto, ancho, rot = 0, espejo = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(ancho / capH * espejo, alto / capH);
+  ctx.fillText(ch, 0, 0); ctx.restore();
+}
+function marco(x, y, w, h, rot, gr) { // rectángulo de 4 letras I
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  palo(-w / 2, -h / 2, -w / 2, h / 2, gr); palo(w / 2, -h / 2, w / 2, h / 2, gr);
+  palo(-w / 2, -h / 2, w / 2, -h / 2, gr); palo(-w / 2, h / 2, w / 2, h / 2, gr);
+  ctx.restore();
+}
+function dibujarIconos() {
+  const S = F * 0.42, gr = 0.24; // gr: qué tan gruesa es la I (más gruesa, más se notan sus serifas)
+  ctx.font = `500 ${F}px ${FUENTE}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const c of ICONOS) {
+    if (c.alfa < 0.02) continue;
+    ctx.save();
+    ctx.globalAlpha = c.alfa;
+    ctx.translate(c.x, c.y + Math.sin(t * 1.6 + c.fase) * S * 0.08);   // flotan
+    ctx.rotate(Math.sin(t * 1.1 + c.fase) * 0.06);
+    ctx.scale(c.esc, c.esc);
+    ctx.fillStyle = '#d9b65e'; ctx.shadowColor = ORO; ctx.shadowBlur = 12;
+    if (c.id === 'cartas') {
+      // tres cartas en abanico; cada una tapa a la de atrás con el color del fondo
+      for (const [dx, rot] of [[-S * 0.18, -0.32], [0, -0.08], [S * 0.18, 0.18]]) {
+        ctx.save(); ctx.translate(dx, 0); ctx.rotate(rot);
+        ctx.shadowBlur = 0; ctx.fillStyle = '#141c2e'; ctx.fillRect(-S * 0.24, -S * 0.36, S * 0.48, S * 0.72);
+        ctx.fillStyle = '#d9b65e'; ctx.shadowBlur = 12;
+        marco(0, 0, S * 0.48, S * 0.72, 0, gr); ctx.restore();
+      }
+    } else if (c.id === 'dado') {
+      marco(0, 0, S * 0.7, S * 0.7, 0, gr);
+      for (const [px, py] of [[-.18, -.18], [0, 0], [.18, .18], [.18, -.18], [-.18, .18]])
+        letraIcono('O', px * S, py * S, S * 0.12, S * 0.12);
+    } else if (c.id === 'd20') {
+      const r = S * 0.42, hx = k => Math.cos(-Math.PI / 2 + k * Math.PI / 3) * r, hy = k => Math.sin(-Math.PI / 2 + k * Math.PI / 3) * r;
+      const ri = r * 0.52, ix = k => Math.cos(-Math.PI / 2 + k * TAU / 3) * ri, iy = k => Math.sin(-Math.PI / 2 + k * TAU / 3) * ri;
+      for (let k = 0; k < 6; k++) palo(hx(k), hy(k), hx(k + 1), hy(k + 1), gr);           // hexágono
+      for (let k = 0; k < 3; k++) palo(ix(k), iy(k), ix(k + 1), iy(k + 1), gr);           // triángulo
+      for (let k = 0; k < 3; k++) for (const d of [-1, 0, 1]) {                            // aristas hacia afuera
+        const hk = (2 * k + d + 6) % 6; palo(ix(k), iy(k), hx(hk), hy(hk), gr * 0.6);
+      }
+    } else if (c.id === 'trofeo') {
+      letraIcono('U', 0, -S * 0.14, S * 0.6, S * 0.6);                  // copa
+      letraIcono('C', -S * 0.29, -S * 0.2, S * 0.28, S * 0.16, 0, 1);   // asa izquierda: la C abre hacia la copa
+      letraIcono('C', S * 0.29, -S * 0.2, S * 0.28, S * 0.16, 0, -1);   // asa derecha: C volteada
+      palo(0, S * 0.14, 0, S * 0.4, gr * 2.4);                          // pie
+      palo(-S * 0.22, S * 0.44, S * 0.22, S * 0.44, gr * 2.4);          // base
+    }
+    ctx.restore();
+  }
+}
+
 function crearGremio() {
   gremio = [];
   let k = 0;
@@ -294,6 +387,7 @@ function paso() {
   // completo: como solo existen las uniones correctas, si las cuatro están juntas se lee NOVA
   if (letraO().grupo.length === 4) empezarLogo();
   pasoBrujula(gs);
+  pasoIconos();
   pasoGremio(gs);
 }
 
@@ -342,6 +436,7 @@ function pasoLogo() {
   }
   lecturaT *= 0.97;
   pasoGremio(grupos());
+  pasoIconos();
 }
 // ciclo de la O: gira 360° (1.4 s), palpita dos veces (1 s), descansa (0.8 s)
 function animO() {
@@ -445,6 +540,8 @@ function dibujar() {
     ctx.fillStyle = lectura ? '#dfe3ea' : '#8d97ab';
     ctx.fillText(g.ch, 0, 0); ctx.restore();
   }
+
+  dibujarIconos();
 
   // letras grandes
   for (const l of letras) {
