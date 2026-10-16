@@ -32,7 +32,7 @@ Todo lo que se ve son letras: las cuatro de **NOVA** y las diecinueve de **GREMI
 | **La O** | además, el emblema y la brújula del gremio | el emblema dorado del logo armado solo con letras: el aro es la O; los rombos de los puntos cardinales son una A volteada sobre una V; las puntas de afuera son V delgadas; los bloques de las diagonales son letras I; y la estrella son 8 V afiladas, cada una con una mitad clara y otra oscura (las facetas). La estrella hace de aguja, y su punta principal es más clara |
 | **Letras pequeñas** | los miembros del gremio | agentes con steering (wander, seek, arrive y separación), como en la Unidad 6 |
 | **Vínculo** | tomarse de la mano | restricción de distancia 0 entre un punto que las dos letras sostienen |
-| **Íconos** | lo que se hace en NOVA: cartas (TCG), dado (juegos de mesa), d20 (rol) y trofeo (torneos) | armados con letras: los trazos son letras I estiradas entre dos puntos, los puntos del dado son O pequeñas y el trofeo es una U (copa) con dos C (asas), una I (pie) y dos I acostadas (base en dos escalones) |
+| **Íconos** | lo que se hace en NOVA: cartas (TCG), dado (juegos de mesa), d20 (rol) y trofeo (torneos) | armados con letras: los trazos son letras I estiradas entre dos puntos, los puntos del dado son O pequeñas y el trofeo también es de trazos de I (copa en media elipse, asas en arco, pie y base) |
 
 ### Qué puede hacer la persona
 
@@ -107,6 +107,8 @@ En resumen: **en NOVA nadie se aventura solo.**
 - **Prueba 11 (íconos):** quise que cada unión mostrara algo que se hace en NOVA, con los íconos de su página (cartas, dado, d20 y trofeo). Para cumplir la regla de que todo salga de las letras, los armé con letras: los trazos son letras I estiradas entre dos puntos, los puntos del dado son O pequeñas y el trofeo es una U con dos C y letras I. En la primera versión el trofeo se leía como letras sueltas ("ɔUc") y el pie casi no se veía; agrandé la copa, acerqué las asas y engrosé el pie y la base. Con I muy gruesas, sus serifas hacían que el d20 se viera espinoso, así que las adelgacé (0.32 → 0.24). También noté que si el tamaño de la ventana cambia más de un 20 %, el juego se reinicia (las letras se rehacen con las medidas nuevas).
 
 - **Prueba 12 (trofeo):** el trofeo seguía sin leerse: el pie no se veía y abajo quedaba un "⊥". La causa era que las letras de los íconos se centraban en la caja completa de la fuente y no en la altura de la letra, así que cada I quedaba corrida hacia arriba y el pie se escondía detrás de la copa. Ahora se centran en la altura de mayúscula (esto también alinea mejor las cartas, el dado y el d20). Además rehice el trofeo: copa U más ancha, asas C delgadas pegadas al borde, pie largo y base en dos escalones (una I ancha abajo y otra corta arriba).
+
+- **Prueba 13 (trofeo, otra vez):** aunque ya se leía, el trofeo no encajaba con los otros íconos: ellos son dibujos de línea hechos con trazos de I, y el trofeo mezclaba letras macizas (U y C) con trazos. Lo rehice con el mismo estilo de línea: borde recto, copa como media elipse de 6 trazos, asas de 3 trazos cada una, pie y base rectangular. Todo sigue siendo letras I. Ahora los cuatro íconos se ven como una familia.
 
 ### Predicciones verificables (para la sustentación)
 

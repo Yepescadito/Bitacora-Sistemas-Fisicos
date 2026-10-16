@@ -230,13 +230,21 @@ function dibujarIconos() {
         const hk = (2 * k + d + 6) % 6; palo(ix(k), iy(k), hx(hk), hy(hk), gr * 0.6);
       }
     } else if (c.id === 'trofeo') {
-      // copa: una U de -0.42 a 0.04 (alto 0.46); asas: C delgadas pegadas al borde, a la altura del borde superior
-      letraIcono('U', 0, -S * 0.19, S * 0.46, S * 0.52);
-      letraIcono('C', -S * 0.25, -S * 0.27, S * 0.22, S * 0.11, 0, 1);  // asa izquierda: la C abre hacia la copa
-      letraIcono('C', S * 0.25, -S * 0.27, S * 0.22, S * 0.11, 0, -1);  // asa derecha: C volteada
-      palo(0, S * 0.03, 0, S * 0.3, gr * 1.6);                          // pie (de la copa a la base)
-      palo(-S * 0.12, S * 0.32, S * 0.12, S * 0.32, gr * 2.2);          // base: escalón de arriba
-      palo(-S * 0.2, S * 0.4, S * 0.2, S * 0.4, gr * 2.6);              // base: escalón de abajo, más ancho
+      // dibujo de línea como los demás íconos: todo son trazos de I
+      // arco(cx, cy, rx, ry, desde, hasta, n): una curva hecha de n letras I
+      const arco = (cx, cy, rx, ry, a0, a1, n) => {
+        for (let k = 0; k < n; k++) {
+          const p = a0 + (a1 - a0) * k / n, q = a0 + (a1 - a0) * (k + 1) / n;
+          palo(cx + Math.cos(p) * rx, cy + Math.sin(p) * ry, cx + Math.cos(q) * rx, cy + Math.sin(q) * ry, gr);
+        }
+      };
+      const borde = -S * 0.36, rx = S * 0.24;
+      palo(-rx, borde, rx, borde, gr);                                   // borde de la copa
+      arco(0, borde, rx, S * 0.34, 0, Math.PI, 6);                       // cuerpo de la copa (media elipse)
+      arco(-rx, borde + S * 0.11, S * 0.1, S * 0.09, Math.PI / 2, Math.PI * 1.5, 3);   // asa izquierda
+      arco(rx, borde + S * 0.11, S * 0.1, S * 0.09, -Math.PI / 2, Math.PI / 2, 3);     // asa derecha
+      palo(0, -S * 0.02, 0, S * 0.2, gr);                                // pie
+      marco(0, S * 0.27, S * 0.34, S * 0.12, 0, gr);                     // base
     }
     ctx.restore();
   }
