@@ -150,22 +150,6 @@ Los tramos salen de medir la energía del mp3 en ventanas de 2 s (energía total
 | clímax | 3:56 | el tramo más brillante | la compresión más fuerte de toda la pieza | cargar al máximo · giro alto · arrastrar el centro |
 | corte | 4:34 | final abrupto | se termina de golpe | **soltar** en el corte y **shift** hasta que se apague |
 
-# Bitácora de IA
-
-Trabajé con Claude (Claude Code) sobre el proyecto base, pidiendo modificaciones localizadas y verificando cada una.
-
-| Paso | Qué pedí | Qué hizo la IA | Qué verifiqué o corregí |
-|---|---|---|---|
-| 1 | Trabajar con el repositorio del profesor | clonó `forces-instrument-u3`, instaló Node 22 y lo compiló sin cambios | quedó en el commit `3d7bc6c` para poder comparar |
-| 2 | Medir la estructura de LesAlpx | midió la energía, los graves y los agudos cada 2 s | el score sale de esos tramos (no del oído de la IA) |
-| 3 | Elegir una intención | propuso tres lecturas (presión, dos centros, mareas) | **elegí presión y liberación**; descarté las otras dos |
-| 4 | Fuerzas propias | escribió confinamiento y liberación en el compute, marcadas `[NUEVO]` | revisé que no tocara estado, integración ni render |
-| 5 | Verificar con números | agregó `measure()`, que lee los buffers de la GPU | las pruebas comparan valores medidos, no impresiones |
-| 6 | Pruebas 1–7 | ejecutó y midió | **descarté la primera tanda** (estaba en PERFORMANCE; prueba 10) |
-| 7 | Ciclo de presión | primera versión: más presión, más giro | **no comprimía** (prueba 8); se corrigió para que la presión frene (prueba 9) |
-| 8 | Respuesta al audio | — | **rechacé** usar el volumen o el pulso para controlar cualquier cosa; el encargo lo prohíbe |
-| 9 | Rueda del mouse | el proyecto base la usaba para el zoom de la cámara | la reasigné al giro, que es más expresivo; el zoom quedó desactivado |
-
 # Autoevaluación ponderada
 
 *(Por completar antes de la sesión 4: cada criterio de 0 a 100. Aporte = valoración × peso / 100.)*
