@@ -22,7 +22,7 @@ El instrumento hace sentir esa presión. Mientras sostengo una tecla, una cásca
 
 # Autoevaluación ponderada
 
-**Nota:**4.0
+**Nota:** 4.0
 
 | Criterio | Puntos | Valoración |
 |---|:---:|:---:|
