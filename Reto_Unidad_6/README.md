@@ -32,7 +32,7 @@ La estética es la de *brat*: **verde lima y negro**, tipografía Arial en minú
 
 # Autoevaluación
 
-Nota: 4.25
+**Nota:** 4.25
 
 | Criterio | Puntos | Valoración |
 |---|:---:|:---:|
