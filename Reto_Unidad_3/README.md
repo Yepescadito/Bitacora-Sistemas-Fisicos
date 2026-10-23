@@ -22,12 +22,14 @@ El instrumento hace sentir esa presión. Mientras sostengo una tecla, una cásca
 
 # Autoevaluación ponderada
 
+**Nota:**4.0
 
 | Criterio | Puntos | Valoración |
 |---|:---:|:---:|
 | Trazabilidad y comprensión del sistema | 25 | 20 |
-| Verificación del algoritmo de fuerzas | 20 | 20 |
+| Verificación del algoritmo de fuerzas | 25 | 20 |
+| Diseño de fuerzas e intención | 20 | 20 |
 | Instrumento, score e interpretación | 15 | 10 |
 | Experimentación y criterio frente a la IA | 10 | 10 |
-| Entrega técnica y documentación | 5 | 5 |
-| **Total** | **100** | 45|
+| Entrega técnica y documentación | 5 | 0 |
+| **Total** | **100** | 80 |
